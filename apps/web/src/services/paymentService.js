@@ -39,7 +39,7 @@ export const openRazorpayCheckout = async ({
   title,
   description = 'Event Ticket Pass Booking',
   prefillName = 'Student Member',
-  prefillEmail = 'student@charusat.edu.in',
+  prefillEmail = 'student@campus.edu',
   onSuccess,
   onDismiss
 }) => {

@@ -8,7 +8,7 @@ export const SettingsView = ({ session, activeClub, onToast, onResetDb }) => {
   const [integrations, setIntegrations] = useState([
     { id: 'razorpay', name: 'Razorpay UPI & Cards Gateway', category: 'Payments', connected: true },
     { id: 'stripe', name: 'Stripe Global Card Processing', category: 'Payments', connected: false },
-    { id: 'google_sso', name: 'CHARUSAT Google SSO Login', category: 'Auth', connected: true },
+    { id: 'google_sso', name: 'Campus Google SSO Login', category: 'Auth', connected: true },
     { id: 'whatsapp', name: 'WhatsApp Business API Alerts', category: 'Messaging', connected: true },
     { id: 'mailgun', name: 'Mailgun Transactional Email', category: 'Email', connected: true },
     { id: 'gcal', name: 'Google Calendar Event Sync', category: 'Calendar', connected: false }
@@ -27,7 +27,7 @@ export const SettingsView = ({ session, activeClub, onToast, onResetDb }) => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div>
         <h1 style={{ fontSize: '26px', fontWeight: 900, margin: 0 }}>
-          Club Settings, Integrations & SLA Health (16, NFR-01, NFR-09)
+          Club Settings, Integrations & SLA Health
         </h1>
         <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)' }}>
           Configure API connectors, review performance SLA targets, and manage club data exports for {activeClub.name}.

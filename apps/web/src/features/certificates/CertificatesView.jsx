@@ -8,9 +8,9 @@ export const CertificatesView = ({ session, activeClub, onDataChange, onToast })
   const [selectedCert, setSelectedCert] = useState(null);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [certForm, setCertForm] = useState({
-    studentName: 'Diya Patel',
-    studentId: '22CE045',
-    eventName: 'CHARUSAT 24h Hackathon 2026',
+    studentName: 'Student Member',
+    studentId: '24CS01',
+    eventName: 'Annual Hackathon & Summit',
     type: 'Certificate of Excellence'
   });
 
@@ -99,7 +99,7 @@ export const CertificatesView = ({ session, activeClub, onDataChange, onToast })
             }}
           >
             <Badge variant="black" style={{ marginBottom: '14px' }}>
-              CHARUSAT UNIVERSITY • OFFICIAL CREDENTIAL
+              CAMPUS STUDENT ACTIVITIES • VERIFIED CREDENTIAL
             </Badge>
 
             <h2 style={{ fontSize: '26px', fontWeight: 900, fontFamily: 'var(--font-heading)', margin: '4px 0 10px' }}>
