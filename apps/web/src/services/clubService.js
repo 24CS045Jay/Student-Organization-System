@@ -5,7 +5,7 @@
 
 import { dbInstance, inr } from '../mock/db';
 import { generateSignedQRToken, verifyQRToken } from './qrSecurityService';
-import { sendEmail, sendTicketConfirmationEmail } from './emailService';
+import { sendEmail, sendTicketConfirmationEmail, sendClubCredentialsEmail } from './emailService';
 import { notificationService } from './notificationService';
 import { supabaseSync } from './supabaseService';
 
@@ -1532,18 +1532,19 @@ export const clubService = {
   },
 
   // --- Centralized Database Authentication & Credential Management ---
-  generateClubEmail: (name, role, domain) => {
-    const cleanDomain = domain?.startsWith('@') ? domain.toLowerCase() : `@${(domain || 'campus.edu').toLowerCase()}`;
-    const cleanName = (name || 'user')
+  generateClubEmail: (name, clubPrefix, domain) => {
+    const prefix = (clubPrefix || 'club').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanFirst = (name || 'member')
+      .trim()
+      .split(' ')[0]
       .toLowerCase()
-      .replace(/[^a-z0-9]/g, '');
-    const cleanRole = (role || 'member')
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '')
-      .replace('student', 'member')
-      .replace('event_manager', 'manager');
+      .replace(/[^a-z0-9]/g, '') || 'member';
 
-    let baseEmail = `${cleanName}${cleanRole}${cleanDomain}`;
+    const cleanDomain = domain?.includes('@')
+      ? domain.replace('@', '').toLowerCase()
+      : (domain || 'clubsphere.edu').toLowerCase();
+
+    let baseEmail = `${cleanFirst}.${prefix}@${cleanDomain}`;
     let finalEmail = baseEmail;
     let counter = 1;
 
@@ -1551,7 +1552,7 @@ export const clubService = {
 
     while (dbInstance.data.users.some(u => u.clubEmail.toLowerCase() === finalEmail.toLowerCase())) {
       counter++;
-      finalEmail = `${cleanName}${cleanRole}${counter}${cleanDomain}`;
+      finalEmail = `${cleanFirst}.${prefix}${counter}@${cleanDomain}`;
     }
 
     return finalEmail;
@@ -1580,9 +1581,9 @@ export const clubService = {
       throw new Error(`An account already exists for ${personalEmail} in ${club.name}. Your assigned club email is "${existing.clubEmail}". Please sign in directly.`);
     }
 
-    // Generate unique official club email
-    const assignedClubEmail = clubService.generateClubEmail(name, role, club.emailDomain);
-    const initialPassword = password || '12345678';
+    // Generate unique official club email formatted as Name + Club Prefix (e.g. jay.tc@clubsphere.edu)
+    const assignedClubEmail = clubService.generateClubEmail(name, club.prefix, club.emailDomain || 'clubsphere.edu');
+    const initialPassword = password || `Club#${Math.floor(1000 + Math.random() * 9000)}!`;
     const userId = `usr-${orgId}-${Date.now().toString(36)}`;
 
     const newUser = {
@@ -1639,22 +1640,16 @@ export const clubService = {
     supabaseSync.syncUser(newUser);
     supabaseSync.syncMember(orgId, club.members[0]);
 
-    // Simulate sending transactional welcome email
-    sendEmail({
-      to: newUser.personalEmail,
-      subject: `🎉 Your Official ${club.name} Login Credentials`,
-      html: `
-        <div style="font-family: sans-serif; padding: 20px; background-color: #FAF5EE; border: 2px solid #000;">
-          <h2>Welcome to ${club.name}!</h2>
-          <p>Your institutional club account has been provisioned on ClubSphere.</p>
-          <div style="background-color: #FFF; padding: 15px; border: 2px solid #000; margin: 15px 0;">
-            <p><strong>Official Club Login Email:</strong> <code style="color: #2563EB; font-size: 16px;">${newUser.clubEmail}</code></p>
-            <p><strong>Initial Password:</strong> <code>${newUser.password}</code></p>
-            <p><strong>Assigned Role:</strong> ${newUser.role.toUpperCase()}</p>
-          </div>
-          <p>You can now log in to the portal using this official club email.</p>
-        </div>
-      `
+    // Dispatch real email via Resend to user's personal email
+    sendClubCredentialsEmail({
+      personalEmail: newUser.personalEmail,
+      userName: newUser.name,
+      clubName: club.name,
+      clubPrefix: club.prefix,
+      clubDomainEmail: newUser.clubEmail,
+      temporaryPassword: newUser.password,
+      role: newUser.role,
+      loginUrl: typeof window !== 'undefined' ? window.location.origin : 'https://clubsphere-campus-os.vercel.app'
     }).catch(console.error);
 
     return {
@@ -1662,7 +1657,8 @@ export const clubService = {
       user: newUser,
       assignedClubEmail: newUser.clubEmail,
       initialPassword: newUser.password,
-      clubName: club.name
+      clubName: club.name,
+      personalEmail: newUser.personalEmail
     };
   },
 
@@ -1696,7 +1692,7 @@ export const clubService = {
     // 1. Direct match by assigned club email
     let user = dbInstance.data.users.find(u => u.clubEmail.toLowerCase() === cleanEmail);
 
-    // 2. If not matched, check if they entered their personal email
+    // 2. If entered personal email -> STRICTLY BLOCK & GUIDE TO OFFICIAL CLUB EMAIL
     if (!user) {
       const matchedByPersonal = dbInstance.data.users.find(u => u.personalEmail?.toLowerCase() === cleanEmail);
       if (matchedByPersonal) {
@@ -1704,7 +1700,7 @@ export const clubService = {
           success: false,
           isPersonalEmail: true,
           assignedClubEmail: matchedByPersonal.clubEmail,
-          error: `⚠️ You entered your personal email. Please sign in using your official platform email: "${matchedByPersonal.clubEmail}".`
+          error: `⛔ PERSONAL EMAIL BLOCKED: You cannot log in with personal email "${cleanEmail}". Institutional security requires signing in with your official club email: "${matchedByPersonal.clubEmail}".`
         };
       }
       return {

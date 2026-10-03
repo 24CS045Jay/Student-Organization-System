@@ -265,21 +265,37 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, onSuperAdminClick, in
         {error && (
           <div
             style={{
-              padding: '10px 14px',
+              padding: '12px 14px',
               backgroundColor: '#FEE2E2',
-              border: '2px solid #DC2626',
-              borderRadius: '8px',
+              border: '2.5px solid #DC2626',
+              borderRadius: '10px',
               color: '#991B1B',
               fontSize: '13px',
               fontWeight: 800,
               display: 'flex',
-              alignItems: 'center',
+              flexDirection: 'column',
               gap: '8px',
               marginBottom: '16px'
             }}
           >
-            <AlertCircle size={18} style={{ flexShrink: 0 }} />
-            <span>{error}</span>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+              <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+              <span style={{ lineHeight: 1.4 }}>{error}</span>
+            </div>
+            {error.includes('PERSONAL EMAIL BLOCKED') && (
+              <button
+                type="button"
+                onClick={() => {
+                  const match = error.match(/"([^"]+@[^"]+)"/);
+                  if (match && match[1]) setClubLoginEmail(match[1]);
+                  setError(null);
+                }}
+                className="neo-btn neo-btn-sm neo-btn-black"
+                style={{ alignSelf: 'flex-start', fontSize: '11px', padding: '6px 12px' }}
+              >
+                Autofill official club email &rarr;
+              </button>
+            )}
           </div>
         )}
 
@@ -298,12 +314,12 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, onSuperAdminClick, in
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', color: '#166534' }}>
                 <CheckCircle2 size={22} />
                 <h3 style={{ fontSize: '16px', fontWeight: 900, margin: 0 }}>
-                  Account Created & Official Email Generated!
+                  Account Created & Credentials Dispatched via Email!
                 </h3>
               </div>
 
               <p style={{ fontSize: '13px', fontWeight: 700, color: '#14532D', marginBottom: '16px', lineHeight: 1.5 }}>
-                Your personal email <strong>{registrationSuccess.user.personalEmail}</strong> has been assigned the official institutional email below.
+                We have delivered your official institutional credentials to your personal email: <strong>{registrationSuccess.personalEmail || personalEmail}</strong>.
               </p>
 
               <div
@@ -338,7 +354,7 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, onSuperAdminClick, in
 
                 <div style={{ borderTop: '1px dashed #D1D5DB', paddingTop: '8px', display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '12px', fontWeight: 800 }}>Initial Password:</span>
-                  <code style={{ fontSize: '13px', fontWeight: 900, color: '#121212' }}>{registrationSuccess.initialPassword}</code>
+                  <code style={{ fontSize: '13px', fontWeight: 900, color: '#DC2626' }}>{registrationSuccess.initialPassword}</code>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -349,14 +365,15 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, onSuperAdminClick, in
                 </div>
               </div>
 
-              <div style={{ marginTop: '14px', fontSize: '11px', color: '#166534', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Sparkles size={14} />
-                <span>Credentials have been synced to the database and sent to your personal email!</span>
+              <div style={{ marginTop: '14px', padding: '10px', backgroundColor: '#FEF3C7', border: '1.5px solid #F59E0B', borderRadius: '8px', fontSize: '11px', color: '#92400E', fontWeight: 700, lineHeight: 1.4 }}>
+                ⚠️ <strong>Login Policy:</strong> You <strong>cannot</strong> log in with your personal email. You must sign in using your assigned official email (<code>{registrationSuccess.assignedClubEmail}</code>).
               </div>
             </div>
 
             <button
               onClick={() => {
+                setClubLoginEmail(registrationSuccess.assignedClubEmail);
+                setPassword(registrationSuccess.initialPassword);
                 setRegistrationSuccess(null);
                 setMode('login');
               }}
@@ -371,7 +388,7 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, onSuperAdminClick, in
                 gap: '8px'
               }}
             >
-              <span>Proceed to Sign In with Assigned Email</span>
+              <span>Proceed to Sign In with Official Email</span>
               <ArrowRight size={18} />
             </button>
           </div>
@@ -523,7 +540,7 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, onSuperAdminClick, in
                 <input
                   type="email"
                   required
-                  placeholder="e.g. neiladmin@techgenius.com"
+                  placeholder="e.g. yourname.tc@clubsphere.edu"
                   value={clubLoginEmail}
                   onChange={(e) => setClubLoginEmail(e.target.value)}
                   className="neo-input"
@@ -531,8 +548,31 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, onSuperAdminClick, in
                 />
                 <Mail size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
               </div>
+
+              {/* Dynamic Warning if User Types a Personal Domain Email */}
+              {/@(gmail|yahoo|outlook|hotmail|icloud|proton|rediffmail)\.com/i.test(clubLoginEmail) && (
+                <div
+                  style={{
+                    marginTop: '8px',
+                    padding: '8px 12px',
+                    backgroundColor: '#FEF3C7',
+                    border: '1.5px solid #F59E0B',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: '#92400E',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                  <span>Personal emails are disabled for login. Please use your assigned club domain email (e.g. <code>yourname.tc@clubsphere.edu</code>).</span>
+                </div>
+              )}
+
               <p style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 700, margin: '4px 0 0' }}>
-                Must be the platform-assigned club email (e.g. <code>nameadmin@clubdomain.com</code>).
+                Must be your official assigned club email (e.g. <code>yourname.tc@clubsphere.edu</code>).
               </p>
             </div>
 
