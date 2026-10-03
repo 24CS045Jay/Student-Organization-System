@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Button, Badge } from '../ui/index';
 import { UserCheck, Shield, Key, Sparkles, Building, CheckCircle2 } from 'lucide-react';
+import { authService } from '../../services/authService';
 
 export const QuickLoginModal = ({
   isOpen,
@@ -81,6 +82,14 @@ export const QuickLoginModal = ({
     const email = roleDef.email(selectedClub);
     const name = roleDef.name(selectedClub);
 
+    authService.login({
+      email,
+      password: 'Password123!',
+      role: roleDef.role,
+      orgId: org,
+      name
+    }).catch(console.warn);
+
     onSelectRoleAndClub({
       role: roleDef.role,
       orgId: org,
@@ -94,6 +103,15 @@ export const QuickLoginModal = ({
   const handleCustomLogin = (e) => {
     e.preventDefault();
     if (!customEmail) return;
+
+    authService.login({
+      email: customEmail,
+      password: customPassword || 'Password123!',
+      role: 'student',
+      orgId: selectedClub,
+      name: customEmail.split('@')[0]
+    }).catch(console.warn);
+
     onSelectRoleAndClub({
       role: 'student',
       orgId: selectedClub,

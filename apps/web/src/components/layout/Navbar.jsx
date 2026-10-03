@@ -110,6 +110,27 @@ export const Navbar = ({
 
       {/* Right Controls: AI Copilot, Notification Bell, User Persona, Logout */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Supabase Connection Indicator */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 10px',
+            borderRadius: '8px',
+            backgroundColor: '#ECFDF5',
+            border: '2px solid #10B981',
+            boxShadow: '1.5px 1.5px 0px #121212',
+            fontSize: '11px',
+            fontWeight: 800,
+            color: '#065F46'
+          }}
+          title="Supabase PostgreSQL Database Connected (lwxqtlajzutgabdcmfwl.supabase.co)"
+        >
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10B981' }} />
+          <span>Supabase DB</span>
+        </div>
+
         {/* AI Copilot Trigger */}
         <Button
           variant="purple"

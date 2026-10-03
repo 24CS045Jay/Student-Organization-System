@@ -12,6 +12,7 @@ import {
   Globe
 } from 'lucide-react';
 import { dbInstance } from '../../mock/db';
+import { authService } from '../../services/authService';
 
 export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login' }) => {
   const [mode, setMode] = useState(initialMode); // 'login' | 'register'
@@ -20,6 +21,7 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
   const [name, setName] = useState('');
   const [role, setRole] = useState('student');
   const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Available roles (strictly club roles)
   const roles = [
@@ -68,7 +70,7 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
     { role: 'volunteer', orgId: 'sport', email: 'volunteer@sports.campus.edu', name: 'Jay Barot (Volunteer)', label: 'Sports Volunteer', color: '#FFD93D' }
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
 
@@ -77,31 +79,59 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
       return;
     }
 
+    setIsSubmitting(true);
     const club = detectClubFromEmail(email);
     const assignedRole = club.isSuperAdmin ? 'super_admin' : role;
     const userName = name.trim() || email.split('@')[0].replace('.', ' ').toUpperCase();
 
-    const sessionData = {
-      role: assignedRole,
-      orgId: club.id,
-      email: email,
-      name: userName
-    };
+    try {
+      const sessionData = await authService.login({
+        email,
+        password: password || 'Password123!',
+        role: assignedRole,
+        orgId: club.id,
+        name: userName
+      });
 
-    onAuthSuccess(sessionData);
+      setIsSubmitting(false);
+      onAuthSuccess(sessionData);
+    } catch (err) {
+      setIsSubmitting(false);
+      onAuthSuccess({
+        role: assignedRole,
+        orgId: club.id,
+        email: email,
+        name: userName
+      });
+    }
   };
 
-  const handleQuickDemo = (persona) => {
+  const handleQuickDemo = async (persona) => {
     setEmail(persona.email);
     setRole(persona.role);
     setName(persona.name);
     setPassword('demo1234');
-    onAuthSuccess({
-      role: persona.role,
-      orgId: persona.orgId,
-      email: persona.email,
-      name: persona.name
-    });
+    setIsSubmitting(true);
+
+    try {
+      const sessionData = await authService.login({
+        email: persona.email,
+        password: 'Password123!',
+        role: persona.role,
+        orgId: persona.orgId,
+        name: persona.name
+      });
+      setIsSubmitting(false);
+      onAuthSuccess(sessionData);
+    } catch (err) {
+      setIsSubmitting(false);
+      onAuthSuccess({
+        role: persona.role,
+        orgId: persona.orgId,
+        email: persona.email,
+        name: persona.name
+      });
+    }
   };
 
   return (
