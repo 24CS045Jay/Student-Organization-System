@@ -41,7 +41,44 @@ export const ReportsHubView = ({ session, activeClub, onToast }) => {
   }, [activeTab]);
 
   const handleExport = (type) => {
-    if (onToast) onToast(`📄 Prototype: Simulated ${type.toUpperCase()} exported successfully!`);
+    try {
+      if (type === 'pdf') {
+        window.print();
+        if (onToast) onToast('🖨️ Print dialog opened for PDF export.');
+        return;
+      }
+
+      let csvContent = "";
+      let filename = `${activeClub.short || 'club'}_${activeTab}_report_${new Date().toISOString().split('T')[0]}`;
+      
+      if (activeTab === 'events') {
+        csvContent = "Event Title,Date,Category,Capacity,Sold,Status,Member Price,Non-Member Price\n";
+        csvContent += events.map(e => `"${e.title}","${e.date}","${e.category}",${e.capacity},${e.sold},${e.status},${e.memberPrice},${e.nonMemberPrice}`).join("\n");
+      } else if (activeTab === 'membership') {
+        csvContent = "Member Name,Email,Type,Status,Paid\n";
+        csvContent += members.map(m => `"${m.name}","${m.email}","${m.type}","${m.status}",${m.paid}`).join("\n");
+      } else if (activeTab === 'finance') {
+        csvContent = "Transaction Type,Category,Title,Amount,Date,Approved By\n";
+        const allTxns = [
+          ...(finance.incomeSources || []).map(i => `"Income","${i.source}","Income Aggregation",${i.amount},"N/A","Auto"`),
+          ...(finance.expensesList || []).map(e => `"Expense","${e.category}","${e.title}",${e.amount},"${e.date}","${e.approvedBy}"`)
+        ];
+        csvContent += allTxns.join("\n");
+      }
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `${filename}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      if (onToast) onToast(`📄 Downloaded ${activeTab.toUpperCase()} report as CSV!`);
+    } catch (err) {
+      if (onToast) onToast(`❌ Export failed: ${err.message}`);
+    }
   };
 
   return (

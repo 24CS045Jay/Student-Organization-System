@@ -87,8 +87,9 @@ export const DonationsView = ({ session, activeClub, onDataChange, onToast }) =>
               variant="black"
               style={{ width: '100%', marginTop: '14px' }}
               onClick={() => {
+                window.print();
                 setSelectedDonationForReceipt(null);
-                if (onToast) onToast('📄 80G Tax Receipt PDF downloaded.');
+                if (onToast) onToast('📄 80G Tax Receipt PDF Print Dialog opened.');
               }}
             >
               Download PDF Copy
