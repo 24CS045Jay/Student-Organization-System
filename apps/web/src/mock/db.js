@@ -102,6 +102,116 @@ class MockDatabase {
     this.save();
   }
 
+  hydrateFromCloud(cloudData) {
+    if (!cloudData) return false;
+    let modified = false;
+
+    // 1. Hydrate Clubs
+    if (cloudData.clubs && cloudData.clubs.length > 0) {
+      cloudData.clubs.forEach(cloudClub => {
+        if (!this.data.clubs[cloudClub.id]) {
+          // Initialize empty skeleton if it doesn't exist
+          this.data.clubs[cloudClub.id] = {
+            id: cloudClub.id,
+            name: cloudClub.name,
+            short: cloudClub.short_name,
+            prefix: cloudClub.prefix,
+            category: cloudClub.category,
+            department: cloudClub.department,
+            color: cloudClub.brand_color,
+            emailDomain: cloudClub.email_domain,
+            members: [], events: [], merchandise: [], tasks: [], 
+            finance: { totalIncome: cloudClub.initial_grant || 0, totalExpenses: 0, netBalance: cloudClub.initial_grant || 0, incomeSources: [], expensesList: [] },
+            stats: { membersCount: 0 },
+            membershipTypes: []
+          };
+        } else {
+          // Update basic info
+          this.data.clubs[cloudClub.id].name = cloudClub.name;
+          this.data.clubs[cloudClub.id].short = cloudClub.short_name;
+        }
+      });
+      modified = true;
+    }
+
+    // 2. Hydrate Users
+    if (cloudData.users && cloudData.users.length > 0) {
+      this.data.users = cloudData.users.map(u => ({
+        id: u.id,
+        orgId: u.club_id,
+        name: u.name,
+        personalEmail: u.personal_email,
+        clubEmail: u.assigned_club_email,
+        password: u.password_hash,
+        role: u.role,
+        studentRollNo: u.student_roll_no,
+        department: u.department,
+        passwordChanged: u.password_changed
+      }));
+      modified = true;
+    }
+
+    // 3. Hydrate Events
+    if (cloudData.events && cloudData.events.length > 0) {
+      cloudData.events.forEach(cloudEv => {
+        const club = this.data.clubs[cloudEv.club_id];
+        if (club) {
+          const existingIdx = club.events.findIndex(e => e.id === cloudEv.id);
+          const mappedEv = {
+            id: cloudEv.id,
+            title: cloudEv.title,
+            category: cloudEv.category,
+            date: cloudEv.date,
+            time: cloudEv.time,
+            location: cloudEv.location,
+            capacity: cloudEv.capacity,
+            memberPrice: cloudEv.member_price,
+            nonMemberPrice: cloudEv.non_member_price,
+            status: cloudEv.status,
+            description: cloudEv.description
+          };
+          if (existingIdx >= 0) {
+            club.events[existingIdx] = { ...club.events[existingIdx], ...mappedEv };
+          } else {
+            // New event from cloud
+            mappedEv.sold = 0;
+            club.events.unshift(mappedEv);
+          }
+        }
+      });
+      modified = true;
+    }
+
+    // 4. Hydrate Tasks
+    if (cloudData.tasks && cloudData.tasks.length > 0) {
+      cloudData.tasks.forEach(cloudTask => {
+        const club = this.data.clubs[cloudTask.club_id];
+        if (club) {
+          const existingIdx = club.tasks.findIndex(t => t.id === cloudTask.id);
+          const mappedTask = {
+            id: cloudTask.id,
+            title: cloudTask.title,
+            owner: cloudTask.owner_name,
+            deadline: cloudTask.deadline,
+            priority: cloudTask.priority,
+            status: cloudTask.status,
+            progress: cloudTask.progress_pct,
+            notes: cloudTask.notes
+          };
+          if (existingIdx >= 0) {
+            club.tasks[existingIdx] = { ...club.tasks[existingIdx], ...mappedTask };
+          } else {
+            club.tasks.unshift(mappedTask);
+          }
+        }
+      });
+      modified = true;
+    }
+
+    if (modified) this.save();
+    return modified;
+  }
+
   getClub(orgId) {
     if (!orgId) throw new Error('Club ID required');
     if (!this.data.clubs[orgId]) {
@@ -171,3 +281,6 @@ class MockDatabase {
 }
 
 export const dbInstance = new MockDatabase();
+if (typeof window !== 'undefined') {
+  window.dbInstance = dbInstance;
+}

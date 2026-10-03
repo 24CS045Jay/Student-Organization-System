@@ -3,6 +3,7 @@ import { Card, Button, Badge, Modal, ProgressBar } from '../../components/ui/ind
 import { DigitalEventTicket } from '../../components/ui/QRCodeCard';
 import { clubService } from '../../services/clubService';
 import { openRazorpayCheckout } from '../../services/paymentService';
+import { Ticket, Calendar, MapPin } from 'lucide-react';
 
 export const BrowseEventsView = ({ session, activeClub, onToast, onNavigate }) => {
   const [selectedEvent, setSelectedEvent] = useState(null);
