@@ -125,7 +125,7 @@ export const Navbar = ({
             fontWeight: 800,
             color: '#065F46'
           }}
-          title="Supabase PostgreSQL Database Connected (lwxqtlajzutgabdcmfwl.supabase.co)"
+          title="Supabase PostgreSQL Database Connected (gyiscrklekojfoffzvaf.supabase.co)"
         >
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10B981' }} />
           <span>Supabase DB</span>
