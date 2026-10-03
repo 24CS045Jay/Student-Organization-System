@@ -7,6 +7,13 @@ import { dbInstance, inr } from '../mock/db';
 import { generateSignedQRToken, verifyQRToken } from './qrSecurityService';
 import { sendEmail, sendTicketConfirmationEmail } from './emailService';
 import { notificationService } from './notificationService';
+import { supabase } from './supabaseClient';
+
+const ORG_UUID_MAP = {
+  'tech': '00000000-0000-0000-0000-000000000001',
+  'cult': '00000000-0000-0000-0000-000000000002',
+  'sport': '00000000-0000-0000-0000-000000000003'
+};
 
 export const clubService = {
   // Tenant validation
@@ -80,6 +87,30 @@ export const clubService = {
 
     dbInstance.logAudit(orgId, session?.email, session?.role, 'Registered New Member', `Created ID ${newId} for ${newMember.name}`, 'None', newId);
     dbInstance.save();
+
+    // Direct Sync to Supabase Database
+    const targetOrgUuid = ORG_UUID_MAP[orgId] || '00000000-0000-0000-0000-000000000001';
+    supabase.from('members').upsert([
+      {
+        org_id: targetOrgUuid,
+        full_name: newMember.name,
+        email: newMember.email,
+        student_id: newMember.studentId,
+        mailing_subscribed: true
+      }
+    ], { onConflict: 'org_id,email' }).then(({ error }) => {
+      if (error) console.warn('Supabase member sync warning:', error);
+    }).catch(console.warn);
+
+    supabase.from('audit_logs').insert([
+      {
+        org_id: targetOrgUuid,
+        action: 'MEMBER_REGISTERED',
+        table_name: 'members',
+        new_value: { id: newId, name: newMember.name, email: newMember.email, studentId: newMember.studentId }
+      }
+    ]).catch(console.warn);
+
     return newMember;
   },
 
