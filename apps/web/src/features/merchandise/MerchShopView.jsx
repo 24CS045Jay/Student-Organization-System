@@ -37,7 +37,7 @@ export const MerchShopView = ({ session, activeClub, onToast, onNavigate }) => {
           unitPrice,
           totalAmt,
           customerName: session.name || 'Student Member',
-          email: session.email || 'student@charusat.edu.in',
+          email: session.email || 'student@campus.edu',
           memberId: `${activeClub.prefix}-001`,
           paymentMethod
         },

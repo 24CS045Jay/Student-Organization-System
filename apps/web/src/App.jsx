@@ -90,11 +90,19 @@ export default function App() {
   }, [session?.orgId]);
 
   // Active Club Data
-  const activeClub = (session && session.orgId === 'platform')
-    ? { id: 'tech', name: 'Platform Root', short: 'Platform', color: '#FFD24C' }
-    : session
-    ? clubService.getClub(session.orgId)
-    : { id: 'tech', name: 'Tech Innovators Club', short: 'Tech', color: '#FFE853' };
+  const activeClub = (() => {
+    if (session && session.orgId === 'platform') {
+      return { id: 'platform', name: 'Platform Super Admin', short: 'Platform', color: '#121212' };
+    }
+    if (session && session.orgId) {
+      try {
+        return clubService.getClub(session.orgId);
+      } catch (err) {
+        return { id: session.orgId, name: 'Club Workspace', short: session.orgId, color: '#FFE853' };
+      }
+    }
+    return { id: 'club', name: 'Student Club', short: 'Club', color: '#FFE853' };
+  })();
 
   // Save session changes
   useEffect(() => {

@@ -12,7 +12,7 @@ export const VolunteerPortalView = ({ session, activeClub, onToast, onDataChange
   const [reimbForm, setReimbForm] = useState({
     amount: 1200,
     category: 'Supplies & Printing',
-    event: 'CHARUSAT 24h Hackathon 2026',
+    event: 'Club Activity & Workshop',
     description: 'Hardware cables and snack supplies',
     receiptUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400'
   });

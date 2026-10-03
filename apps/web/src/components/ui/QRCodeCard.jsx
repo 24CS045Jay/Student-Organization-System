@@ -80,7 +80,7 @@ export const NeoQRCode = ({ code = 'TC-001', size = 150, color = '#121212' }) =>
 // Digital Member Pass (FR-01, FR-02, Item C)
 export const DigitalMemberCard = ({
   member,
-  clubName = 'CHARUSAT Tech Club',
+  clubName = 'Student Club Organization',
   accentColor = 'var(--accent-yellow)',
   onRenew
 }) => {

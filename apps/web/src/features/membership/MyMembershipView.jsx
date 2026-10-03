@@ -141,19 +141,19 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
             </div>
           </Card>
 
-          {/* Event Recommendation Widget (Item D) */}
+          {/* Event Recommendation Widget */}
           <Card title="✨ AI Recommended Next Event" headerBg="var(--accent-yellow)">
             <div>
               <Badge variant="purple" style={{ marginBottom: '8px' }}>
-                Based on your Tech Profile
+                Recommended for You
               </Badge>
-              <h3 style={{ fontSize: '16px', fontWeight: 900 }}>CHARUSAT 24h Hackathon 2026</h3>
+              <h3 style={{ fontSize: '16px', fontWeight: 900 }}>{club.events?.[0]?.title || 'Annual Flagship Hackathon & Workshop'}</h3>
               <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-muted)', margin: '4px 0 12px' }}>
-                You attended 2 developer workshops. Hackers with your skills frequently join our flagship 24h sprint!
+                {club.events?.[0]?.description?.substring(0, 100) || 'Connect with campus peers, build real projects, and earn exclusive club certificates!'}...
               </p>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 900, fontSize: '15px' }}>
-                  Member Price: <span style={{ color: '#059669' }}>₹200</span> <s style={{ fontSize: '12px', color: '#71717A' }}>₹350</s>
+                  Member Price: <span style={{ color: '#059669' }}>{club.events?.[0] ? `₹${club.events[0].memberPrice}` : '₹150'}</span>
                 </span>
                 <Button variant="pink" size="sm" onClick={() => onNavigate && onNavigate('browse-events')}>
                   Get Ticket

@@ -67,7 +67,7 @@ export const DonationsView = ({ session, activeClub, onDataChange, onToast }) =>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '12px', marginBottom: '14px' }}>
               <div>
                 <h3 style={{ fontSize: '16px', fontWeight: 900, margin: 0 }}>{activeClub.name}</h3>
-                <span style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 700 }}>CHARUSAT University Campus Trust</span>
+                <span style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 700 }}>Campus Student Activities Directorate</span>
               </div>
               <Badge variant="green">Receipt: {selectedDonationForReceipt.receiptNo}</Badge>
             </div>

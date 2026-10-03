@@ -70,14 +70,11 @@ export const LandingPageView = ({ onLoginClick, onRegisterClick, onDemoSelect, o
     { role: 'Club Admin', color: '#FF6B6B', desc: 'Full club authority: manage member roster, configure membership tiers, audit logs, and club settings.' }
   ];
 
-  const demoAccounts = [
-    { role: 'super_admin', orgId: 'platform', email: 'root@platform.campus.edu', name: 'Super Admin (Root)', label: '👑 Super Admin', color: '#121212', homeTab: 'saas-orgs' },
-    { role: 'admin', orgId: 'tech', email: 'admin@tech.campus.edu', name: 'Alex Patel (Admin)', label: 'Tech Club Admin', color: '#FFE853', homeTab: 'club-dash' },
-    { role: 'treasurer', orgId: 'tech', email: 'treasurer@tech.campus.edu', name: 'Rohan Shah (Treasurer)', label: 'Tech Treasurer', color: '#6BCB77', homeTab: 'financial-dash' },
-    { role: 'student', orgId: 'tech', email: 'aarav@tech.campus.edu', name: 'Aarav Shah (Member)', label: 'Tech Member', color: '#70D6FF', homeTab: 'my-membership' },
-    { role: 'event_manager', orgId: 'cult', email: 'manager@cultural.campus.edu', name: 'Sara Khan (Manager)', label: 'Cultural Event Mgr', color: '#FF70A6', homeTab: 'events-list' },
-    { role: 'volunteer', orgId: 'sport', email: 'volunteer@sports.campus.edu', name: 'Jay Barot (Volunteer)', label: 'Sports Volunteer', color: '#FFD93D', homeTab: 'tasks-kanban' }
-  ];
+  // Dynamically generate quick demo shortcuts for live registered clubs
+  const demoAccounts = registeredClubs.flatMap(club => [
+    { role: 'admin', orgId: club.id, email: `admin${club.emailDomain || `@${club.id}.campus.edu`}`, name: `${club.short || club.name} Admin`, label: `${club.short || club.name} Admin`, color: club.color || '#FFE853', homeTab: 'club-dash' },
+    { role: 'student', orgId: club.id, email: `member${club.emailDomain || `@${club.id}.campus.edu`}`, name: `${club.short || club.name} Member`, label: `${club.short || club.name} Member`, color: '#70D6FF', homeTab: 'my-membership' }
+  ]);
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#FFFDF7', display: 'flex', flexDirection: 'column' }}>
@@ -259,67 +256,111 @@ export const LandingPageView = ({ onLoginClick, onRegisterClick, onDemoSelect, o
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-            {registeredClubs.map((club) => {
-              const IconComp = getClubIcon(club.category, club.short);
-              const domain = club.emailDomain || `@${club.id}.campus.edu`;
-              return (
-                <div
-                  key={club.id}
-                  className="neo-box"
-                  style={{
-                    backgroundColor: '#FFFDF7',
-                    padding: '24px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between'
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
-                      <div
-                        style={{
-                          width: '46px',
-                          height: '46px',
-                          backgroundColor: club.color || '#FFE853',
-                          border: '2px solid #121212',
-                          borderRadius: '12px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          boxShadow: '3px 3px 0px #121212'
-                        }}
-                      >
-                        <IconComp size={22} color="#121212" />
+          {registeredClubs.length === 0 ? (
+            <div
+              className="neo-box"
+              style={{
+                backgroundColor: '#FFFDF7',
+                padding: '48px 24px',
+                textAlign: 'center',
+                maxWidth: '680px',
+                margin: '0 auto'
+              }}
+            >
+              <div
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  backgroundColor: '#FFE853',
+                  border: '3px solid #121212',
+                  borderRadius: '16px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '4px 4px 0px #121212',
+                  marginBottom: '16px'
+                }}
+              >
+                <Building2 size={32} color="#121212" />
+              </div>
+              <h3 style={{ fontSize: '24px', fontWeight: 900, margin: '0 0 8px' }}>
+                No Student Clubs Registered Yet
+              </h3>
+              <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ink-muted)', marginBottom: '24px', lineHeight: 1.5 }}>
+                The portal database is completely fresh. Super Admin can onboard new clubs, allocate seed budgets, and assign unique email domains.
+              </p>
+              <button
+                onClick={onSuperAdminClick}
+                className="neo-btn neo-btn-yellow neo-btn-lg"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+              >
+                <span>👑 Open Super Admin Portal to Create First Club</span>
+                <ArrowRight size={18} />
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+              {registeredClubs.map((club) => {
+                const IconComp = getClubIcon(club.category, club.short);
+                const domain = club.emailDomain || `@${club.id}.campus.edu`;
+                return (
+                  <div
+                    key={club.id}
+                    className="neo-box"
+                    style={{
+                      backgroundColor: '#FFFDF7',
+                      padding: '24px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
+                        <div
+                          style={{
+                            width: '46px',
+                            height: '46px',
+                            backgroundColor: club.color || '#FFE853',
+                            border: '2px solid #121212',
+                            borderRadius: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '3px 3px 0px #121212'
+                          }}
+                        >
+                          <IconComp size={22} color="#121212" />
+                        </div>
+                        <span className="neo-badge neo-badge-yellow">{club.category || 'Organization'}</span>
                       </div>
-                      <span className="neo-badge neo-badge-yellow">{club.category || 'Organization'}</span>
+
+                      <h3 style={{ fontSize: '20px', fontWeight: 900, margin: '0 0 6px' }}>{club.name}</h3>
+                      <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)', marginBottom: '14px' }}>
+                        {club.description || club.tagline || 'Active student organization on campus.'}
+                      </p>
+
+                      <div style={{ padding: '8px 12px', backgroundColor: '#FAF5EE', border: '1.5px solid #121212', borderRadius: '8px', fontSize: '12px', fontWeight: 800, marginBottom: '16px' }}>
+                        Unique Email Domain: <span style={{ color: '#2563EB' }}>{domain}</span>
+                      </div>
                     </div>
 
-                    <h3 style={{ fontSize: '20px', fontWeight: 900, margin: '0 0 6px' }}>{club.name}</h3>
-                    <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)', marginBottom: '14px' }}>
-                      {club.description || club.tagline || 'Active student organization on campus.'}
-                    </p>
-
-                    <div style={{ padding: '8px 12px', backgroundColor: '#FAF5EE', border: '1.5px solid #121212', borderRadius: '8px', fontSize: '12px', fontWeight: 800, marginBottom: '16px' }}>
-                      Unique Email Domain: <span style={{ color: '#2563EB' }}>{domain}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '2px dashed #121212', paddingTop: '14px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 800 }}>
+                        👥 {club.members?.length || 0} Members • 🎟️ {club.events?.length || 0} Events
+                      </div>
+                      <button
+                        onClick={() => onLoginClick()}
+                        className="neo-btn neo-btn-white neo-btn-sm"
+                      >
+                        Login
+                      </button>
                     </div>
                   </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '2px dashed #121212', paddingTop: '14px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 800 }}>
-                      👥 {club.members?.length || 1} Members • 🎟️ {club.events?.length || 0} Events
-                    </div>
-                    <button
-                      onClick={() => onLoginClick()}
-                      className="neo-btn neo-btn-white neo-btn-sm"
-                    >
-                      Login
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
