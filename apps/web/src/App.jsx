@@ -146,6 +146,13 @@ export default function App() {
     return () => unsubscribe();
   }, [session?.orgId]);
 
+  // Synchronize active club state to central backend API
+  useEffect(() => {
+    if (session?.orgId && session.orgId !== 'platform') {
+      clubService.syncFullLedgerToBackend(session.orgId);
+    }
+  }, [session?.orgId, dataVersion]);
+
   // Active Club Data
   const activeClub = (() => {
     if (session && session.orgId === 'platform') {
