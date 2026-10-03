@@ -12,8 +12,6 @@ import {
   Globe
 } from 'lucide-react';
 import { dbInstance } from '../../mock/db';
-import { clubService } from '../../services/clubService';
-import { authService } from '../../services/authService';
 
 export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login' }) => {
   const [mode, setMode] = useState(initialMode); // 'login' | 'register'
@@ -22,7 +20,6 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
   const [name, setName] = useState('');
   const [role, setRole] = useState('student');
   const [error, setError] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Available roles (strictly club roles)
   const roles = [
@@ -36,74 +33,42 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
   // Dynamic Helper: Detect club based on email address across all registered clubs
   const detectClubFromEmail = (emailStr) => {
     const lower = (emailStr || '').toLowerCase();
+
+    // Dynamic search across all registered clubs in dbInstance
     const registeredClubs = Object.values(dbInstance.data.clubs || {});
-
-    // 1. Match by configured email domain (e.g. @robotics.campus.edu)
     for (const club of registeredClubs) {
-      if (club.emailDomain) {
-        const domainClean = club.emailDomain.replace('@', '').toLowerCase();
-        if (domainClean && lower.includes(domainClean)) {
-          return { id: club.id, name: club.name, color: club.color || '#FFE853' };
-        }
+      if (club.emailDomain && lower.includes(club.emailDomain.replace('@', '').toLowerCase())) {
+        return { id: club.id, name: club.name, color: club.color || '#FFE853' };
       }
-    }
-
-    // 2. Match by club ID, short code, or prefix
-    for (const club of registeredClubs) {
-      if (
-        (club.id && lower.includes(club.id.toLowerCase())) ||
-        (club.short && lower.includes(club.short.toLowerCase())) ||
-        (club.prefix && lower.includes(club.prefix.toLowerCase()))
-      ) {
+      if (lower.includes(club.id) || lower.includes(club.short?.toLowerCase())) {
         return { id: club.id, name: club.name, color: club.color || '#FFE853' };
       }
     }
 
-    // 3. Keyword heuristics
-    if (lower.includes('tech') || lower.includes('cs') || lower.includes('it') || lower.includes('code')) {
-      const match = registeredClubs.find(c => c.id === 'tech' || c.name?.toLowerCase().includes('tech'));
-      if (match) return { id: match.id, name: match.name, color: match.color || '#FFE853' };
-      return { id: 'tech', name: 'CHARUSAT Tech Club', color: '#FFE853' };
+    // Keyword heuristics
+    if (lower.includes('cult') || lower.includes('arts') || lower.includes('music')) {
+      return { id: 'cult', name: 'Cultural Arts Society', color: '#FF70A6' };
     }
-    if (lower.includes('cult') || lower.includes('art') || lower.includes('music') || lower.includes('dance')) {
-      const match = registeredClubs.find(c => c.id === 'cult' || c.name?.toLowerCase().includes('cult'));
-      if (match) return { id: match.id, name: match.name, color: match.color || '#FF70A6' };
-      return { id: 'cult', name: 'CHARUSAT Cultural Society', color: '#FF70A6' };
-    }
-    if (lower.includes('sport') || lower.includes('athletic') || lower.includes('futsal') || lower.includes('cricket')) {
-      const match = registeredClubs.find(c => c.id === 'sport' || c.name?.toLowerCase().includes('sport'));
-      if (match) return { id: match.id, name: match.name, color: match.color || '#70D6FF' };
-      return { id: 'sport', name: 'CHARUSAT Sports Council', color: '#70D6FF' };
+    if (lower.includes('sport') || lower.includes('athletic') || lower.includes('futsal')) {
+      return { id: 'sport', name: 'Sports & Athletics Council', color: '#70D6FF' };
     }
 
-    // 4. If registered clubs exist, default to first club
-    if (registeredClubs.length > 0) {
-      const first = registeredClubs[0];
-      return { id: first.id, name: first.name, color: first.color || '#FFE853' };
-    }
-
-    // 5. Default fallback to Tech Club
-    return { id: 'tech', name: 'CHARUSAT Tech Club', color: '#FFE853' };
+    // Default to Tech Innovators Club
+    return { id: 'tech', name: 'Tech Innovators Club', color: '#FFE853' };
   };
 
   const detectedClub = detectClubFromEmail(email);
 
-  // Quick Demo Personas dynamically derived from active registered clubs or default personas
-  const registeredClubsList = Object.values(dbInstance.data.clubs || {});
-  const demoPersonas = registeredClubsList.length > 0
-    ? registeredClubsList.flatMap(c => [
-        { role: 'admin', orgId: c.id, email: `admin${c.emailDomain || `@${c.id}.campus.edu`}`, name: `${c.short || c.name} Admin`, label: `${c.short || c.name} Admin`, color: c.color || '#FFE853' },
-        { role: 'student', orgId: c.id, email: `student${c.emailDomain || `@${c.id}.campus.edu`}`, name: `${c.short || c.name} Student`, label: `${c.short || c.name} Student`, color: '#70D6FF' }
-      ])
-    : [
-        { role: 'admin', orgId: 'tech', email: 'admin@tech.campus.edu', name: 'Alex Patel (Admin)', label: 'Tech Admin', color: '#FFE853' },
-        { role: 'treasurer', orgId: 'tech', email: 'treasurer@tech.campus.edu', name: 'Rohan Shah (Treasurer)', label: 'Tech Treasurer', color: '#6BCB77' },
-        { role: 'student', orgId: 'tech', email: 'aarav@tech.campus.edu', name: 'Aarav Shah (Member)', label: 'Tech Member', color: '#70D6FF' },
-        { role: 'event_manager', orgId: 'cult', email: 'manager@cultural.campus.edu', name: 'Sara Khan (Manager)', label: 'Cultural Event Mgr', color: '#FF70A6' },
-        { role: 'volunteer', orgId: 'sport', email: 'volunteer@sports.campus.edu', name: 'Jay Barot (Volunteer)', label: 'Sports Volunteer', color: '#FFD93D' }
-      ];
+  // Quick Demo Personas (Club Personas Only)
+  const demoPersonas = [
+    { role: 'admin', orgId: 'tech', email: 'admin@tech.campus.edu', name: 'Alex Patel (Admin)', label: 'Tech Admin', color: '#FFE853' },
+    { role: 'treasurer', orgId: 'tech', email: 'treasurer@tech.campus.edu', name: 'Rohan Shah (Treasurer)', label: 'Tech Treasurer', color: '#6BCB77' },
+    { role: 'student', orgId: 'tech', email: 'aarav@tech.campus.edu', name: 'Aarav Shah (Member)', label: 'Tech Member', color: '#70D6FF' },
+    { role: 'event_manager', orgId: 'cult', email: 'manager@cultural.campus.edu', name: 'Sara Khan (Manager)', label: 'Cultural Event Mgr', color: '#FF70A6' },
+    { role: 'volunteer', orgId: 'sport', email: 'volunteer@sports.campus.edu', name: 'Jay Barot (Volunteer)', label: 'Sports Volunteer', color: '#FFD93D' }
+  ];
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setError(null);
 
@@ -112,75 +77,31 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
       return;
     }
 
-    const club = detectClubFromEmail(email) || { id: 'tech', name: 'CHARUSAT Tech Club', color: '#FFE853' };
-
-    setIsSubmitting(true);
-    const assignedRole = role;
+    const club = detectClubFromEmail(email);
+    const assignedRole = club.isSuperAdmin ? 'super_admin' : role;
     const userName = name.trim() || email.split('@')[0].replace('.', ' ').toUpperCase();
 
-    // If registering a new user, also record in club.members table if not already present
-    if (mode === 'register') {
-      try {
-        clubService.registerMember(club.id, {
-          name: userName,
-          email: email,
-          dept: 'Computer Engineering',
-          type: 'Standard Member',
-          paid: 1
-        }, { email, role: assignedRole });
-      } catch (err) {
-        console.warn('Auto member registration notice:', err);
-      }
-    }
+    const sessionData = {
+      role: assignedRole,
+      orgId: club.id,
+      email: email,
+      name: userName
+    };
 
-    try {
-      const sessionData = await authService.login({
-        email,
-        password: password || 'Password123!',
-        role: assignedRole,
-        orgId: club.id,
-        name: userName
-      });
-
-      setIsSubmitting(false);
-      onAuthSuccess(sessionData);
-    } catch (err) {
-      setIsSubmitting(false);
-      onAuthSuccess({
-        role: assignedRole,
-        orgId: club.id,
-        email: email,
-        name: userName
-      });
-    }
+    onAuthSuccess(sessionData);
   };
 
-  const handleQuickDemo = async (persona) => {
+  const handleQuickDemo = (persona) => {
     setEmail(persona.email);
     setRole(persona.role);
     setName(persona.name);
     setPassword('demo1234');
-    setIsSubmitting(true);
-
-    try {
-      const sessionData = await authService.login({
-        email: persona.email,
-        password: 'Password123!',
-        role: persona.role,
-        orgId: persona.orgId,
-        name: persona.name
-      });
-      setIsSubmitting(false);
-      onAuthSuccess(sessionData);
-    } catch (err) {
-      setIsSubmitting(false);
-      onAuthSuccess({
-        role: persona.role,
-        orgId: persona.orgId,
-        email: persona.email,
-        name: persona.name
-      });
-    }
+    onAuthSuccess({
+      role: persona.role,
+      orgId: persona.orgId,
+      email: persona.email,
+      name: persona.name
+    });
   };
 
   return (
@@ -356,7 +277,7 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
             </div>
 
             {/* Dynamic Auto-Detected Club Indicator */}
-            {email.includes('@') && detectedClub && (
+            {email.includes('@') && (
               <div
                 style={{
                   marginTop: '8px',
@@ -377,8 +298,8 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
                 </div>
                 <span
                   style={{
-                    backgroundColor: detectedClub?.color || '#FFE853',
-                    color: detectedClub?.isSuperAdmin ? '#FFFFFF' : '#121212',
+                    backgroundColor: detectedClub.color,
+                    color: detectedClub.isSuperAdmin ? '#FFFFFF' : '#121212',
                     padding: '2px 8px',
                     borderRadius: '4px',
                     border: '1px solid #121212',
@@ -386,7 +307,7 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
                     fontWeight: 900
                   }}
                 >
-                  {detectedClub?.name || 'Club'}
+                  {detectedClub.name}
                 </span>
               </div>
             )}

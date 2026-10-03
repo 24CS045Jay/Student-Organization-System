@@ -8,67 +8,8 @@ export const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 // Updated storage key to start 100% fresh without any legacy dummy data
 const STORAGE_KEY = 'clubsphere_live_db_v4';
 
-// Fresh initial database state with baseline campus organizations
-export const INITIAL_CLUBS_DATA = {
-  tech: {
-    id: 'tech',
-    name: 'CHARUSAT Tech Club',
-    short: 'Tech Club',
-    prefix: 'TC',
-    category: 'Technical',
-    color: '#FFE853',
-    accentColor: '#FFE853',
-    emailDomain: '@tech.campus.edu',
-    members: [],
-    events: [],
-    merchandise: [],
-    tasks: [],
-    membershipTypes: [
-      { id: '10000000-0000-0000-0000-000000000001', name: 'Standard Member', price: 499, duration_months: 12, benefits: 'Workshops & Hackathons' },
-      { id: '10000000-0000-0000-0000-000000000002', name: 'Premium Member', price: 999, duration_months: 12, benefits: 'VIP pass, swag & mentor 1-on-1' }
-    ],
-    finance: { totalIncome: 0, totalExpenses: 0, netBalance: 0, incomeSources: [], expensesList: [] },
-    stats: { membersCount: 0 }
-  },
-  cult: {
-    id: 'cult',
-    name: 'CHARUSAT Cultural Society',
-    short: 'Cultural Society',
-    prefix: 'CC',
-    category: 'Cultural',
-    color: '#FF70A6',
-    accentColor: '#FF70A6',
-    emailDomain: '@cultural.campus.edu',
-    members: [],
-    events: [],
-    merchandise: [],
-    tasks: [],
-    membershipTypes: [
-      { id: '10000000-0000-0000-0000-000000000003', name: 'Standard Arts Member', price: 499, duration_months: 12, benefits: 'Concerts & Art Exhibitions' }
-    ],
-    finance: { totalIncome: 0, totalExpenses: 0, netBalance: 0, incomeSources: [], expensesList: [] },
-    stats: { membersCount: 0 }
-  },
-  sport: {
-    id: 'sport',
-    name: 'CHARUSAT Sports Council',
-    short: 'Sports Council',
-    prefix: 'SC',
-    category: 'Sports',
-    color: '#70D6FF',
-    accentColor: '#70D6FF',
-    emailDomain: '@sports.campus.edu',
-    members: [],
-    events: [],
-    merchandise: [],
-    tasks: [],
-    membershipTypes: [
-      { id: '10000000-0000-0000-0000-000000000004', name: 'Sports Athlete Pass', price: 499, duration_months: 12, benefits: 'Tournaments & Team Kit' }
-    ],
-    finance: { totalIncome: 0, totalExpenses: 0, netBalance: 0, incomeSources: [], expensesList: [] },
-    stats: { membersCount: 0 }
-  }
-};
+// Fresh initial database state: 0 dummy clubs. All clubs created via Super Admin.
+export const INITIAL_CLUBS_DATA = {};
 
 export const INITIAL_PLATFORM_DATA = {
   organizations: [],
@@ -108,11 +49,8 @@ class MockDatabase {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        const clubs = (parsed.clubs && Object.keys(parsed.clubs).length > 0)
-          ? parsed.clubs
-          : JSON.parse(JSON.stringify(INITIAL_CLUBS_DATA));
         return {
-          clubs,
+          clubs: parsed.clubs || {},
           platform: parsed.platform || JSON.parse(JSON.stringify(INITIAL_PLATFORM_DATA)),
           auditLogs: parsed.auditLogs || [],
           notifications: parsed.notifications || []
@@ -148,16 +86,8 @@ class MockDatabase {
   }
 
   getClub(orgId) {
-    if (!orgId) throw new Error('Club ID required');
-    if (!this.data.clubs[orgId]) {
-      if (INITIAL_CLUBS_DATA[orgId]) {
-        this.data.clubs[orgId] = JSON.parse(JSON.stringify(INITIAL_CLUBS_DATA[orgId]));
-        this.save();
-      } else {
-        const first = Object.keys(this.data.clubs)[0];
-        if (first) return this.data.clubs[first];
-        throw new Error(`Club "${orgId}" not found or unauthorized (Tenant Isolation Rule).`);
-      }
+    if (!orgId || !this.data.clubs[orgId]) {
+      throw new Error(`Club "${orgId}" not found or unauthorized (Tenant Isolation Rule).`);
     }
     return this.data.clubs[orgId];
   }
