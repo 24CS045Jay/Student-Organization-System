@@ -2,28 +2,62 @@ import React, { useState } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/ui/index';
 import { NeoQRCode } from '../../components/ui/QRCodeCard';
 import { clubService } from '../../services/clubService';
-import { Award, Plus, Download, CheckCircle2, QrCode, Sparkles } from 'lucide-react';
+import { Award, Plus, Download, CheckCircle2, QrCode, Sparkles, Trash2 } from 'lucide-react';
 
 export const CertificatesView = ({ session, activeClub, onDataChange, onToast }) => {
   const [selectedCert, setSelectedCert] = useState(null);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
-  const [certForm, setCertForm] = useState({
-    studentName: 'Student Member',
-    studentId: '24CS01',
-    eventName: 'Annual Hackathon & Summit',
-    type: 'Certificate of Excellence'
-  });
 
   const club = clubService.getClub(activeClub.id);
   const certificates = club.certificates || [];
+  const members = club.members || [];
+  const events = club.events || [];
+
+  const [certForm, setCertForm] = useState({
+    memberId: '',
+    studentName: '',
+    studentId: '',
+    eventId: '',
+    eventName: '',
+    type: 'Certificate of Excellence'
+  });
+
+  const handleOpenGenerate = () => {
+    const firstMember = members[0];
+    const firstEvent = events[0];
+    setCertForm({
+      memberId: firstMember?.id || '',
+      studentName: firstMember?.name || '',
+      studentId: firstMember?.studentId || '24CS01',
+      eventId: firstEvent?.id || '',
+      eventName: firstEvent?.title || 'Annual Club Hackathon & Workshop',
+      type: 'Certificate of Excellence'
+    });
+    setIsGenerateOpen(true);
+  };
 
   const handleGenerate = (e) => {
     e.preventDefault();
+    if (!certForm.studentName.trim() || !certForm.eventName.trim()) {
+      alert('Please provide the recipient name and event/milestone.');
+      return;
+    }
     try {
       const newCert = clubService.generateCertificate(activeClub.id, certForm, session);
       setIsGenerateOpen(false);
       setSelectedCert(newCert);
       if (onToast) onToast(`🎖️ Issued ${newCert.id} to ${newCert.studentName}!`);
+      if (onDataChange) onDataChange();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteCert = (cert) => {
+    if (!window.confirm(`Revoke / Delete certificate ${cert.id} issued to ${cert.studentName}?`)) return;
+    try {
+      clubService.deleteCertificate(activeClub.id, cert.id, session);
+      if (onToast) onToast(`🗑️ Revoked certificate ${cert.id}`);
       if (onDataChange) onDataChange();
     } catch (err) {
       alert(err.message);
@@ -99,17 +133,15 @@ export const CertificatesView = ({ session, activeClub, onDataChange, onToast })
           <h2>${cert.type}</h2>
           <p>This certifies that</p>
           <div class="recipient">${cert.studentName}</div>
-          <p>has successfully participated and achieved distinction in <strong>${cert.eventName}</strong> organized by ${activeClub.name}.</p>
+          <p>has successfully achieved distinction and verified participation in<br><strong>${cert.eventName}</strong></p>
           <div class="footer">
             <div class="sign-box">
-              <div class="sign-title">Club Executive Directorate</div>
-              <div class="sign-sub">Authorized Institutional Signatory</div>
-              <div class="sign-sub" style="margin-top:4px;">Credential ID: ${cert.id}</div>
+              <div class="sign-title">${activeClub.name} Executive Board</div>
+              <div class="sign-sub">Issued Date: ${cert.issueDate}</div>
             </div>
             <div class="hash-box">
-              <div class="sign-title">Issued: ${cert.issueDate}</div>
-              <div class="sign-sub">Cryptographic Token: ${cert.qrCode ? cert.qrCode.substring(0, 22) + '...' : 'VERIFIED'}</div>
-              <div class="sign-sub" style="color: #059669; font-weight: 800; margin-top:4px;">✓ Authenticity Verified</div>
+              <div class="sign-title">Certificate ID: ${cert.id}</div>
+              <div class="sign-sub">SHA-256 Authenticated</div>
             </div>
           </div>
         </div>
@@ -140,49 +172,100 @@ export const CertificatesView = ({ session, activeClub, onDataChange, onToast })
           </p>
         </div>
         {session.role !== 'student' && (
-          <Button variant="yellow" size="sm" onClick={() => setIsGenerateOpen(true)} icon={Plus}>
+          <Button variant="yellow" size="sm" onClick={handleOpenGenerate} icon={Plus}>
             Generate Verified Certificate
           </Button>
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-        {certificates.map((cert) => (
-          <Card
-            key={cert.id}
-            title={cert.type}
-            headerBg="var(--accent-purple)"
-            headerAction={<Badge variant="green">Verified</Badge>}
+      {certificates.length === 0 ? (
+        <Card title="No Certificates Issued Yet" headerBg="var(--accent-purple)">
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '48px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '12px'
+            }}
           >
-            <div style={{ textAlign: 'center', padding: '10px 0' }}>
-              <h3 style={{ fontSize: '20px', fontWeight: 900, margin: '0 0 4px' }}>{cert.studentName}</h3>
-              <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-muted)', marginBottom: '14px' }}>
-                ID: {cert.studentId} • {cert.eventName}
-              </p>
-
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
-                <NeoQRCode code={cert.qrCode} size={110} />
-              </div>
-
-              <div style={{ fontSize: '11px', fontWeight: 900, color: 'var(--ink-muted)', marginBottom: '16px' }}>
-                Ref: {cert.id} • Issued: {cert.issueDate}
-              </div>
-
-              <Button variant="black" size="sm" style={{ width: '100%' }} onClick={() => setSelectedCert(cert)} icon={Award}>
-                View Certificate Diploma
-              </Button>
+            <div
+              style={{
+                fontSize: '44px',
+                width: '80px',
+                height: '80px',
+                borderRadius: '20px',
+                backgroundColor: '#EDE9FE',
+                border: '3px solid #000',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '4px 4px 0px #000'
+              }}
+            >
+              🎓
             </div>
-          </Card>
-        ))}
-      </div>
+            <h3 style={{ fontSize: '18px', fontWeight: 900, margin: '4px 0' }}>
+              Zero Issued Credentials
+            </h3>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)', maxWidth: '420px' }}>
+              Issue cryptographically verifiable certificates to event attendees, workshop winners, and core volunteers with instant scannable QR verification.
+            </p>
+            <Button variant="yellow" onClick={handleOpenGenerate} icon={Plus}>
+              Issue First Certificate
+            </Button>
+          </div>
+        </Card>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+          {certificates.map((cert) => (
+            <Card
+              key={cert.id}
+              title={cert.type}
+              headerBg="var(--accent-purple)"
+              headerAction={
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <Badge variant="green">Verified</Badge>
+                  <Button
+                    variant="white"
+                    size="sm"
+                    onClick={() => handleDeleteCert(cert)}
+                    icon={Trash2}
+                    title="Revoke Certificate"
+                  />
+                </div>
+              }
+            >
+              <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: 900, margin: '0 0 4px' }}>{cert.studentName}</h3>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-muted)', marginBottom: '14px' }}>
+                  ID: {cert.studentId} • {cert.eventName}
+                </p>
+
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
+                  <NeoQRCode code={cert.qrCode} size={110} />
+                </div>
+
+                <div style={{ fontSize: '11px', fontWeight: 900, color: 'var(--ink-muted)', marginBottom: '16px' }}>
+                  Ref: {cert.id} • Issued: {cert.issueDate}
+                </div>
+
+                <Button variant="black" size="sm" style={{ width: '100%' }} onClick={() => setSelectedCert(cert)} icon={Award}>
+                  View Certificate Diploma
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Certificate Modal Diploma View */}
       <Modal
         isOpen={Boolean(selectedCert)}
         onClose={() => setSelectedCert(null)}
-        title="🎓 Verified Certificate Diploma"
-        maxWidth="680px"
-        headerColor="var(--accent-yellow)"
+        title="Official Verified Credential Diploma"
+        headerColor="var(--accent-purple)"
       >
         {selectedCert && (
           <div
@@ -245,7 +328,7 @@ export const CertificatesView = ({ session, activeClub, onDataChange, onToast })
         )}
       </Modal>
 
-      {/* Generate Certificate Drawer */}
+      {/* Generate Certificate Modal */}
       <Modal
         isOpen={isGenerateOpen}
         onClose={() => setIsGenerateOpen(false)}
@@ -254,10 +337,34 @@ export const CertificatesView = ({ session, activeClub, onDataChange, onToast })
       >
         <form onSubmit={handleGenerate} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
-            <label className="neo-label">Student Name *</label>
+            <label className="neo-label">Select Student Recipient</label>
+            {members.length > 0 && (
+              <select
+                value={certForm.memberId}
+                onChange={(e) => {
+                  const m = members.find(mem => mem.id === e.target.value);
+                  setCertForm({
+                    ...certForm,
+                    memberId: e.target.value,
+                    studentName: m ? m.name : certForm.studentName,
+                    studentId: m ? m.studentId : certForm.studentId
+                  });
+                }}
+                className="neo-input neo-select"
+                style={{ marginBottom: '6px' }}
+              >
+                <option value="">Custom Recipient / Type Below</option>
+                {members.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} ({m.studentId} • {m.dept})
+                  </option>
+                ))}
+              </select>
+            )}
             <input
               type="text"
               required
+              placeholder="e.g. Neil Patel"
               value={certForm.studentName}
               onChange={(e) => setCertForm({ ...certForm, studentName: e.target.value })}
               className="neo-input"
@@ -270,6 +377,7 @@ export const CertificatesView = ({ session, activeClub, onDataChange, onToast })
               <input
                 type="text"
                 value={certForm.studentId}
+                placeholder="24CS01"
                 onChange={(e) => setCertForm({ ...certForm, studentId: e.target.value })}
                 className="neo-input"
               />
@@ -284,14 +392,39 @@ export const CertificatesView = ({ session, activeClub, onDataChange, onToast })
                 <option value="Certificate of Excellence">Certificate of Excellence</option>
                 <option value="Certificate of Completion">Certificate of Completion</option>
                 <option value="Volunteer Service Award">Volunteer Service Award</option>
+                <option value="Workshop Distinction">Workshop Distinction</option>
               </select>
             </div>
           </div>
 
           <div>
-            <label className="neo-label">Event / Milestone</label>
+            <label className="neo-label">Event / Milestone Achievement</label>
+            {events.length > 0 && (
+              <select
+                value={certForm.eventId}
+                onChange={(e) => {
+                  const ev = events.find(event => event.id === e.target.value);
+                  setCertForm({
+                    ...certForm,
+                    eventId: e.target.value,
+                    eventName: ev ? ev.title : certForm.eventName
+                  });
+                }}
+                className="neo-input neo-select"
+                style={{ marginBottom: '6px' }}
+              >
+                <option value="">Custom Event / Type Below</option>
+                {events.map(ev => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.title} ({ev.date})
+                  </option>
+                ))}
+              </select>
+            )}
             <input
               type="text"
+              required
+              placeholder="e.g. Annual Web3 & AI Hackathon"
               value={certForm.eventName}
               onChange={(e) => setCertForm({ ...certForm, eventName: e.target.value })}
               className="neo-input"

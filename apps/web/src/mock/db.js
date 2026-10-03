@@ -20,193 +20,20 @@ export const INITIAL_CLUBS_DATA = {
     accentColor: '#FFE853',
     emailDomain: '@tech.campus.edu',
     members: [],
-    events: [
-      {
-        id: 'ev-tc-01',
-        title: 'CHARUSAT 24h Hackathon 2026',
-        category: 'Hackathon',
-        date: '2026-10-18',
-        time: '09:00 AM',
-        location: 'Central Computing Lab & Auditorium B',
-        capacity: 200,
-        sold: 64,
-        memberPrice: 150,
-        nonMemberPrice: 350,
-        status: 'Published',
-        description: '24 hours of non-stop innovation, building AI agents and full-stack solutions with top mentors & prize pool of ₹1,00,000.',
-        deadline: '2026-10-17 23:59',
-        organizer: 'Tech Club Executive Team',
-        bannerGradient: 'linear-gradient(135deg, #FFE853 0%, #FF70A6 100%)',
-        budget: { venue: 20000, food: 25000, prizes: 30000 },
-        tags: ['Hackathon', 'AI', 'Coding']
-      },
-      {
-        id: 'ev-tc-02',
-        title: 'Generative AI & LLM Systems Workshop',
-        category: 'Workshop',
-        date: '2026-10-25',
-        time: '02:00 PM',
-        location: 'Lab 402, CSPIT IT Building',
-        capacity: 80,
-        sold: 45,
-        memberPrice: 0,
-        nonMemberPrice: 150,
-        status: 'Published',
-        description: 'Hands-on bootcamp on fine-tuning open-source LLMs, building RAG pipelines, and deploying containerized models.',
-        deadline: '2026-10-24 23:59',
-        organizer: 'AI & Data Science SIG',
-        bannerGradient: 'linear-gradient(135deg, #70D6FF 0%, #C8B6FF 100%)',
-        budget: { venue: 5000, snacks: 4000 },
-        tags: ['Workshop', 'GenAI', 'LLM']
-      }
-    ],
+    events: [],
     merchandise: [],
     tasks: [],
     orders: [],
-    tickets: [
-      {
-        id: 'TKT-TC-9801',
-        eventId: 'ev-tc-01',
-        eventTitle: 'CHARUSAT 24h Hackathon 2026',
-        memberId: 'TC-001',
-        attendeeName: 'Jay Barot',
-        email: 'jay.barot@charusat.edu.in',
-        studentId: '24CS045',
-        isMember: true,
-        pricePaid: 150,
-        status: 'Valid',
-        checkInTime: null,
-        seat: 'Pass #12',
-        purchaseDate: '2026-10-01',
-        qrToken: 'CSQ1.TKT-TC-9801.tech.9801sig'
-      },
-      {
-        id: 'TKT-TC-9802',
-        eventId: 'ev-tc-01',
-        eventTitle: 'CHARUSAT 24h Hackathon 2026',
-        memberId: 'TC-002',
-        attendeeName: 'Param Joshi',
-        email: 'param.j@charusat.edu.in',
-        studentId: '24CS015',
-        isMember: true,
-        pricePaid: 150,
-        status: 'Attended',
-        checkInTime: '10:15 AM, Today',
-        seat: 'Pass #13',
-        purchaseDate: '2026-10-01',
-        qrToken: 'CSQ1.TKT-TC-9802.tech.9802sig'
-      },
-      {
-        id: 'TKT-TC-9803',
-        eventId: 'ev-tc-01',
-        eventTitle: 'CHARUSAT 24h Hackathon 2026',
-        memberId: 'TC-001',
-        attendeeName: 'Aarav Patel',
-        email: 'aarav@techclub.edu',
-        studentId: '24CS001',
-        isMember: true,
-        pricePaid: 150,
-        status: 'Valid',
-        checkInTime: null,
-        seat: 'Pass #14',
-        purchaseDate: '2026-10-02',
-        qrToken: 'CSQ1.TKT-TC-9803.tech.9803sig'
-      },
-      {
-        id: 'TKT-TC-9800',
-        eventId: 'ev-tc-01',
-        eventTitle: 'CHARUSAT 24h Hackathon 2026',
-        memberId: 'TC-002',
-        attendeeName: 'Diya Patel',
-        email: 'diya@techclub.edu',
-        studentId: '24IT012',
-        isMember: true,
-        pricePaid: 150,
-        status: 'Valid',
-        checkInTime: null,
-        seat: 'Pass #11',
-        purchaseDate: '2026-10-01',
-        qrToken: 'CSQ1.TKT-TC-9800.tech.9800sig'
-      }
-    ],
+    tickets: [],
     fundraisers: [],
     sponsors: [],
     donations: [],
     certificates: [],
-    feedback: [
-      {
-        id: 'fb-tc-01',
-        eventTitle: 'CHARUSAT 24h Hackathon 2026',
-        ratings: { overall: 5, speaker: 5, content: 5, venue: 5, organization: 5 },
-        comment: 'The mentor guidance and cloud infrastructure were top notch! Seamless QR gate entry too.',
-        author: 'Jay Barot (24CS045)',
-        date: '2026-10-02'
-      },
-      {
-        id: 'fb-tc-02',
-        eventTitle: 'Generative AI & LLM Systems Workshop',
-        ratings: { overall: 5, speaker: 5, content: 5, venue: 4, organization: 5 },
-        comment: 'Hands-on coding exercises with transformer models were super practical.',
-        author: 'Diya Patel (24IT012)',
-        date: '2026-09-28'
-      }
-    ],
-    volunteers: [
-      {
-        id: 'VOL-TC-01',
-        name: 'Jay Barot',
-        email: 'jay.volunteer@tech.campus.edu',
-        phone: '+91 98250 11223',
-        roleTitle: 'Technical Operations Volunteer',
-        hours: 56,
-        service_hours: 56,
-        badge: 'Silver Contributor (50h+)',
-        rating: 4.9,
-        skills: ['Event Logistics', 'Gate Registration', 'Stage AV'],
-        activeTasks: 3
-      },
-      {
-        id: 'VOL-TC-02',
-        name: 'Param Joshi',
-        email: 'param.v@tech.campus.edu',
-        phone: '+91 98765 43210',
-        roleTitle: 'Event Logistics Volunteer',
-        hours: 32,
-        service_hours: 32,
-        badge: 'Bronze Contributor (25h+)',
-        rating: 4.8,
-        skills: ['Audio/Visual', 'Equipment Setup'],
-        activeTasks: 1
-      }
-    ],
-    reimbursements: [
-      {
-        id: 'REIMB-TC-101',
-        volunteerName: 'Jay Barot',
-        volunteerEmail: 'jay.volunteer@tech.campus.edu',
-        category: 'Supplies & Printing',
-        event: 'CHARUSAT 24h Hackathon 2026',
-        amount: 1800,
-        date: '2026-10-02',
-        description: 'Lanyards, badge printing, and extension cords',
-        receiptUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400',
-        status: 'Manager Approved',
-        approver: 'Event Manager',
-        notes: 'Official GST invoice verified'
-      }
-    ],
-    announcements: [
-      {
-        id: 'ANN-TC-01',
-        title: 'Volunteer Briefing for CHARUSAT Hackathon 2026',
-        audience: 'All Members & Students',
-        channels: ['In-app', 'Email'],
-        content: 'All volunteers please assemble at Central Computing Lab at 8:30 AM this Saturday.',
-        date: '2026-10-02',
-        author: 'Club Admin',
-        reach: 120
-      }
-    ],
+    feedback: [],
+    volunteers: [],
+    reimbursements: [],
+    announcements: [],
+    purchaseOrders: [],
     membershipTypes: [
       { id: '10000000-0000-0000-0000-000000000001', name: 'Standard Member', price: 499, duration_months: 12, benefits: 'Workshops & Hackathons' },
       { id: '10000000-0000-0000-0000-000000000002', name: 'Premium Member', price: 999, duration_months: 12, benefits: 'VIP pass, swag & mentor 1-on-1' }
@@ -228,46 +55,16 @@ export const INITIAL_CLUBS_DATA = {
     merchandise: [],
     tasks: [],
     orders: [],
-    tickets: [
-      {
-        id: 'TKT-CC-401',
-        eventId: 'ev-cc-01',
-        eventTitle: 'Inter-College Dance & Drama Fest',
-        memberId: 'CC-001',
-        attendeeName: 'Ananya Iyer',
-        email: 'ananya@cultclub.edu',
-        studentId: '24IT005',
-        isMember: true,
-        pricePaid: 100,
-        status: 'Valid',
-        checkInTime: null,
-        seat: 'Pass #01',
-        purchaseDate: '2026-10-01',
-        qrToken: 'CSQ1.TKT-CC-401.cult.401sig'
-      }
-    ],
+    tickets: [],
     fundraisers: [],
     sponsors: [],
     donations: [],
     certificates: [],
     feedback: [],
-    volunteers: [
-      {
-        id: 'VOL-CC-01',
-        name: 'Diya Patel',
-        email: 'diya.v@cultural.campus.edu',
-        phone: '+91 99123 45678',
-        roleTitle: 'Hospitality Volunteer',
-        hours: 42,
-        service_hours: 42,
-        badge: 'Bronze Contributor (25h+)',
-        rating: 4.95,
-        skills: ['Hospitality', 'Stage Management'],
-        activeTasks: 2
-      }
-    ],
+    volunteers: [],
     reimbursements: [],
     announcements: [],
+    purchaseOrders: [],
     membershipTypes: [
       { id: '10000000-0000-0000-0000-000000000003', name: 'Standard Arts Member', price: 499, duration_months: 12, benefits: 'Concerts & Art Exhibitions' }
     ],
@@ -297,6 +94,7 @@ export const INITIAL_CLUBS_DATA = {
     volunteers: [],
     reimbursements: [],
     announcements: [],
+    purchaseOrders: [],
     membershipTypes: [
       { id: '10000000-0000-0000-0000-000000000004', name: 'Sports Athlete Pass', price: 499, duration_months: 12, benefits: 'Tournaments & Team Kit' }
     ],
@@ -357,13 +155,53 @@ class MockDatabase {
         // Purge any users associated with legacy default clubs
         const users = (parsed.users || []).filter(u => u.orgId !== 'tech' && u.orgId !== 'cult' && u.orgId !== 'sport');
 
-        return {
+        // Sanitize all user clubs to eliminate static/mock seed data while keeping dynamic user-created records
+        Object.values(clubs).forEach(club => {
+          if (!club) return;
+          club.events = (club.events || []).filter(e => !e.id?.endsWith('-01') && !e.title?.includes('Inaugural Tech Fest') && !e.title?.includes('CHARUSAT 24h Hackathon') && !e.title?.includes('Generative AI'));
+          club.tickets = (club.tickets || []).filter(t => !t.id?.includes('001') && !t.id?.includes('980') && !t.id?.includes('401'));
+          club.merchandise = (club.merchandise || []).filter(m => !m.id?.endsWith('-01') && !m.name?.includes('Official Premium Hoodie'));
+          club.fundraisers = (club.fundraisers || []).filter(f => !f.id?.endsWith('-01') && !f.title?.includes('Campus Innovation Lab Hardware Fund'));
+          club.tasks = (club.tasks || []).filter(t => !t.id?.endsWith('-01') && !t.title?.includes('Gate QR Scanner Setup'));
+          club.volunteers = (club.volunteers || []).filter(v => !v.id?.endsWith('-01') && !v.name?.includes('Kabir Verma'));
+          club.reimbursements = (club.reimbursements || []).filter(r => !r.id?.endsWith('-01') && !r.volunteerName?.includes('Kabir Verma'));
+          club.sponsors = (club.sponsors || []).filter(s => !s.id?.endsWith('-01') && !s.name?.includes('TechCorp Solutions') && !s.company?.includes('TechCorp Solutions'));
+          club.announcements = (club.announcements || []).filter(a => !a.id?.endsWith('-1') && !a.title?.includes('Welcome to') && !a.title?.includes('Volunteer Briefing'));
+          club.purchaseOrders = club.purchaseOrders || [];
+          club.donations = club.donations || [];
+          club.certificates = club.certificates || [];
+          club.feedback = club.feedback || [];
+          
+          // Keep only real registered users/admin, purge mock seed roster
+          club.members = (club.members || []).filter(m => 
+            !m.name?.includes('(Treasurer)') &&
+            !m.name?.includes('(Event Manager)') &&
+            !m.name?.includes('(Volunteer)') &&
+            !m.name?.includes('(Student Member)') &&
+            !m.name?.includes('Priya Sharma') &&
+            !m.name?.includes('Rohan Mehta') &&
+            !m.name?.includes('Kabir Verma') &&
+            !m.name?.includes('Aarav Patel')
+          );
+
+          if (!club.finance) {
+            club.finance = { totalIncome: 0, totalExpenses: 0, netBalance: 0, incomeSources: [], expensesList: [] };
+          } else {
+            club.finance.expensesList = (club.finance.expensesList || []).filter(e => !e.receipt?.includes('BILL-NEW-01') && !e.id?.includes('EXP-TC'));
+            club.finance.incomeSources = club.finance.incomeSources || [];
+          }
+        });
+
+        const cleanData = {
           clubs,
           users,
           platform: parsed.platform || JSON.parse(JSON.stringify(INITIAL_PLATFORM_DATA)),
           auditLogs: parsed.auditLogs || [],
           notifications: parsed.notifications || []
         };
+        // Persist cleansed database
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanData)); } catch (_) {}
+        return cleanData;
       }
     } catch (e) {
       console.warn('LocalStorage error, initializing fresh database state', e);

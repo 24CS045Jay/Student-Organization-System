@@ -68,46 +68,54 @@ export const LeaderboardView = ({ session, activeClub }) => {
               </tr>
             </thead>
             <tbody>
-              {sorted.map((v, idx) => (
-                <tr key={v.id} style={{ backgroundColor: idx === 0 ? '#FFFBEB' : '#FFFFFF' }}>
-                  <td>
-                    <span
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        border: '2px solid #000',
-                        backgroundColor: idx === 0 ? 'var(--accent-yellow)' : idx === 1 ? '#E0E7FF' : idx === 2 ? '#FFE8D6' : '#FFFFFF',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 900,
-                        fontSize: '13px'
-                      }}
-                    >
-                      {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
-                    </span>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: 900, fontSize: '14px' }}>{v.name}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>{v.email}</div>
-                  </td>
-                  <td style={{ fontWeight: 900, fontSize: '16px', color: '#059669' }}>
-                    {v.hours} Hours
-                  </td>
-                  <td>
-                    <Badge variant={v.hours >= 100 ? 'yellow' : v.hours >= 50 ? 'purple' : 'blue'}>
-                      {v.badge}
-                    </Badge>
-                  </td>
-                  <td style={{ fontWeight: 800 }}>
-                    ⭐ {v.rating} / 5.0
-                  </td>
-                  <td style={{ fontWeight: 800 }}>
-                    {v.tasksCompleted || 10} Tasks
+              {sorted.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '36px 20px', fontWeight: 800, color: 'var(--ink-muted)' }}>
+                    No volunteer service hours logged yet. Log hours in the Volunteer Hub to climb the Hall of Fame!
                   </td>
                 </tr>
-              ))}
+              ) : (
+                sorted.map((v, idx) => (
+                  <tr key={v.id} style={{ backgroundColor: idx === 0 ? '#FFFBEB' : '#FFFFFF' }}>
+                    <td>
+                      <span
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          border: '2px solid #000',
+                          backgroundColor: idx === 0 ? 'var(--accent-yellow)' : idx === 1 ? '#E0E7FF' : idx === 2 ? '#FFE8D6' : '#FFFFFF',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 900,
+                          fontSize: '13px'
+                        }}
+                      >
+                        {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 900, fontSize: '14px' }}>{v.name}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>{v.email}</div>
+                    </td>
+                    <td style={{ fontWeight: 900, fontSize: '16px', color: '#059669' }}>
+                      {v.hours || 0} Hours
+                    </td>
+                    <td>
+                      <Badge variant={(v.hours || 0) >= 100 ? 'yellow' : (v.hours || 0) >= 50 ? 'purple' : 'blue'}>
+                        {v.badge || 'Contributor'}
+                      </Badge>
+                    </td>
+                    <td style={{ fontWeight: 800 }}>
+                      ⭐ {v.rating || '5.0'} / 5.0
+                    </td>
+                    <td style={{ fontWeight: 800 }}>
+                      {v.tasksCompleted || v.activeTasks || 0} Tasks
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

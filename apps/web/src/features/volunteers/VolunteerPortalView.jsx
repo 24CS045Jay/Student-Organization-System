@@ -114,7 +114,7 @@ export const VolunteerPortalView = ({ session, activeClub, onToast, onDataChange
         {/* Left: Skills & Assigned Tasks */}
         <Card title="🎯 Verified Skills & Competencies" headerBg="var(--accent-yellow)">
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
-            {(currentVol.skills || ['Event Logistics', 'Social Media', 'Stage Management']).map((s, idx) => (
+            {(currentVol.skills && currentVol.skills.length > 0 ? currentVol.skills : ['Club Logistics', 'Operations', 'Event Coordination']).map((s, idx) => (
               <Badge key={idx} variant="purple" style={{ fontSize: '13px', padding: '6px 14px' }}>
                 ✓ {s}
               </Badge>
@@ -124,15 +124,37 @@ export const VolunteerPortalView = ({ session, activeClub, onToast, onDataChange
           <h4 style={{ fontSize: '15px', fontWeight: 900, marginBottom: '10px' }}>
             Active Volunteer Commitments
           </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ padding: '12px', backgroundColor: '#FAF5EE', border: '2px solid #000', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontWeight: 900, fontSize: '13px' }}>24h Hackathon Registration & Gate Lead</div>
-                <div style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 700 }}>18 Oct 2026 • 8 Hours Expected</div>
+          {(() => {
+            const myTasks = (club.tasks || []).filter(t => 
+              (t.owner && currentVol.name && t.owner.toLowerCase() === currentVol.name.toLowerCase()) ||
+              (t.assignedTo && currentVol.name && t.assignedTo.toLowerCase() === currentVol.name.toLowerCase()) ||
+              (session?.name && t.owner && t.owner.toLowerCase() === session.name.toLowerCase())
+            );
+
+            if (myTasks.length === 0) {
+              return (
+                <div style={{ padding: '20px', textAlign: 'center', backgroundColor: '#FAF5EE', border: '1.5px dashed #000', borderRadius: '10px', fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)' }}>
+                  No active logistics tasks assigned to your name yet. Head to the Tasks Kanban to pick up open tasks!
+                </div>
+              );
+            }
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {myTasks.map((task) => (
+                  <div key={task.id} style={{ padding: '12px', backgroundColor: '#FAF5EE', border: '2px solid #000', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 900, fontSize: '13px' }}>{task.title}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 700 }}>Due: {task.deadline} • Priority: {task.priority}</div>
+                    </div>
+                    <Badge variant={task.status === 'Done' ? 'green' : task.status === 'In Progress' ? 'purple' : 'yellow'}>
+                      {task.status || task.stage || 'Active'}
+                    </Badge>
+                  </div>
+                ))}
               </div>
-              <Badge variant="yellow">Active</Badge>
-            </div>
-          </div>
+            );
+          })()}
         </Card>
 
         {/* Right: Submit Reimbursement Quick Card */}

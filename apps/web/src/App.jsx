@@ -359,7 +359,7 @@ export default function App() {
       case 'inventory':
         return <InventoryView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
       case 'my-orders':
-        return <OrdersView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
+        return <OrdersView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} onNavigate={setActiveTab} />;
       case 'tasks-kanban':
         return <TasksKanbanView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
       case 'volunteer-portal':
@@ -371,7 +371,7 @@ export default function App() {
         return <FundraisersView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
       case 'financial-dash':
       case 'budget-mgmt':
-        return <FinancialDashboardView session={session} activeClub={activeClub} onToast={handleToast} onNavigate={setActiveTab} />;
+        return <FinancialDashboardView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} onNavigate={setActiveTab} />;
       case 'income-ledger':
         return <IncomeView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
       case 'expenses-ledger':
