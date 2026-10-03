@@ -81,34 +81,11 @@ export const clubService = {
 
     dbInstance.logAudit(orgId, session?.email, session?.role, 'Registered New Member', `Created ID ${newId} for ${newMember.name}`, 'None', newId);
     dbInstance.save();
-
-    // Direct Sync to Supabase Database
-    const targetOrgUuid = ORG_UUID_MAP[orgId] || '00000000-0000-0000-0000-000000000001';
-    supabase.from('members').upsert([
-      {
-        org_id: targetOrgUuid,
-        full_name: newMember.name,
-        email: newMember.email,
-        student_id: newMember.studentId,
-        mailing_subscribed: true
-      }
-    ], { onConflict: 'org_id,email' }).then(({ error }) => {
-      if (error) console.warn('Supabase member sync warning:', error);
-    }).catch(console.warn);
-
-    supabase.from('audit_logs').insert([
-      {
-        org_id: targetOrgUuid,
-        action: 'MEMBER_REGISTERED',
-        table_name: 'members',
-        new_value: { id: newId, name: newMember.name, email: newMember.email, studentId: newMember.studentId }
-      }
-    ]).catch(console.warn);
-
+    supabaseSync.syncMember(orgId, newMember);
     return newMember;
   },
 
-  renewMember: (orgId, memberId, months = 12, session) => {
+  renewMember: (orgId, memberId, months = 12, session, newPlan = null) => {
     const club = dbInstance.getClub(orgId);
     const member = club.members.find(m => m.id === memberId);
     if (!member) throw new Error('Member not found');
@@ -120,10 +97,14 @@ export const clubService = {
     member.status = 'Active';
     member.paid = 1;
 
+    if (newPlan) {
+      member.type = newPlan;
+    }
+
     const renewCost = member.type.includes('Premium') ? 999 : 499;
     member.history.push({
       date: new Date().toISOString().split('T')[0],
-      action: `Renewed Membership (${months} mo)`,
+      action: newPlan ? `Upgraded to ${newPlan}` : `Renewed Membership (${months} mo)`,
       amt: renewCost
     });
 
@@ -306,6 +287,8 @@ export const clubService = {
 
     dbInstance.logAudit(orgId, session?.email, session?.role, 'Purchased Ticket', `Ticket ${tktId} for "${event.title}" by ${newTicket.attendeeName} (₹${price}, Razorpay Ref: ${newTicket.paymentId})`, 'Available Seat', `Seat ${event.sold}/${event.capacity}`);
     dbInstance.save();
+    supabaseSync.syncTicket(orgId, newTicket);
+    supabaseSync.syncEvent(orgId, event);
 
     // Trigger transactional confirmation email (Phase 5)
     sendTicketConfirmationEmail({
@@ -497,6 +480,7 @@ export const clubService = {
 
     dbInstance.logAudit(orgId, session?.email, session?.role, 'Updated Task Kanban', `Task "${task.title}" moved to ${newStatus}`, oldStatus, newStatus);
     dbInstance.save();
+    supabaseSync.syncTask(orgId, task);
     return task;
   },
 
@@ -515,6 +499,7 @@ export const clubService = {
     club.tasks.unshift(newTask);
     dbInstance.logAudit(orgId, session?.email, session?.role, 'Created Task', `Created task "${newTask.title}" for ${newTask.owner}`, 'None', newTask.id);
     dbInstance.save();
+    supabaseSync.syncTask(orgId, newTask);
     return newTask;
   },
 
@@ -685,7 +670,7 @@ export const clubService = {
     // When status reaches "Reimbursed", automatically create an expense row in the ledger (FR-17)
     if (newStatus === 'Reimbursed') {
       const expId = `EXP-${club.prefix}-${Date.now().toString(36).slice(-4).toUpperCase()}`;
-      club.finance.expensesList.unshift({
+      const newExp = {
         id: expId,
         title: `Reimbursement: ${reimb.volunteerName} (${reimb.category})`,
         category: 'Reimbursement',
@@ -693,9 +678,11 @@ export const clubService = {
         date: new Date().toISOString().split('T')[0],
         approvedBy: session?.name || 'Treasurer Tech',
         receipt: reimb.id
-      });
+      };
+      club.finance.expensesList.unshift(newExp);
       club.finance.totalExpenses += reimb.amount;
       club.finance.netBalance -= reimb.amount;
+      supabaseSync.syncFinancialTxn(orgId, newExp);
     }
 
     dbInstance.logAudit(orgId, session?.email, session?.role, 'Updated Reimbursement Status', `Reimbursement ${reimb.id} changed to ${newStatus}`, oldStatus, newStatus);
@@ -722,6 +709,7 @@ export const clubService = {
 
     dbInstance.logAudit(orgId, session?.email, session?.role, 'Recorded Expense', `Expense "${newExp.title}" (₹${newExp.amount}) recorded in ledger`, 'None', expId);
     dbInstance.save();
+    supabaseSync.syncFinancialTxn(orgId, newExp);
     return newExp;
   },
 

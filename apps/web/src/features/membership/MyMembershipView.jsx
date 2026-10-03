@@ -34,15 +34,16 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
 
   const handleRenew = () => {
     try {
-      if (currentMember?.id) {
-        clubService.renewMember(activeClub.id, currentMember.id, 12, session);
-      }
+      clubService.renewMember(activeClub.id, currentMember.id, 12, session, renewPlan);
       setShowRenewModal(false);
       if (onRenewSuccess) onRenewSuccess();
     } catch (e) {
       alert(e.message);
     }
   };
+
+  // Get active membership details dynamically
+  const activeMembershipType = membershipTypes.find(t => t.name === currentMember.type) || membershipTypes[0] || { ticketDiscount: 10, merchDiscount: 5, perks: ['Basic access'] };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -131,7 +132,7 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
                 <div>
                   <h4 style={{ fontSize: '14px', fontWeight: 900 }}>Discounted Event Tickets</h4>
                   <p style={{ fontSize: '12px', color: 'var(--ink-muted)', fontWeight: 700 }}>
-                    Enjoy up to 40% discount on all hackathon and workshop ticket passes.
+                    Enjoy up to {activeMembershipType.ticketDiscount || 15}% discount on all hackathon and workshop ticket passes.
                   </p>
                 </div>
               </div>
@@ -143,7 +144,7 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
                 <div>
                   <h4 style={{ fontSize: '14px', fontWeight: 900 }}>Merchandise Store Discount</h4>
                   <p style={{ fontSize: '12px', color: 'var(--ink-muted)', fontWeight: 700 }}>
-                    Exclusive 20% member coupon auto-applied on hoodies and club gear.
+                    Exclusive {activeMembershipType.merchDiscount || 10}% member coupon auto-applied on hoodies and club gear.
                   </p>
                 </div>
               </div>
@@ -153,9 +154,9 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
                   <Award size={20} color="#3730A3" />
                 </div>
                 <div>
-                  <h4 style={{ fontSize: '14px', fontWeight: 900 }}>Digital Verified Certificates</h4>
+                  <h4 style={{ fontSize: '14px', fontWeight: 900 }}>Exclusive Benefits</h4>
                   <p style={{ fontSize: '12px', color: 'var(--ink-muted)', fontWeight: 700 }}>
-                    Cryptographically tamper-proof certificates with public QR verification.
+                    {activeMembershipType.perks?.join(' • ') || 'Digital Verified Certificates and exclusive club access.'}
                   </p>
                 </div>
               </div>
@@ -175,6 +176,13 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 900, fontSize: '15px' }}>
                   Member Price: <span style={{ color: '#059669' }}>{recommendedEvent ? `₹${recommendedEvent.memberPrice || 0}` : '₹150'}</span>
+              <h3 style={{ fontSize: '16px', fontWeight: 900 }}>{activeClub.events?.[0]?.title || 'Annual Flagship Hackathon & Workshop'}</h3>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-muted)', margin: '4px 0 12px' }}>
+                {activeClub.events?.[0]?.description?.substring(0, 100) || 'Connect with campus peers, build real projects, and earn exclusive club certificates!'}...
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 900, fontSize: '15px' }}>
+                  Member Price: <span style={{ color: '#059669' }}>{activeClub.events?.[0] ? `₹${activeClub.events[0].memberPrice}` : '₹150'}</span>
                 </span>
                 <Button variant="pink" size="sm" onClick={() => onNavigate && onNavigate('browse-events')}>
                   Get Ticket

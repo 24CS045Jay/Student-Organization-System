@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Button, Badge, StatCard } from '../../components/ui/index';
 import { clubService } from '../../services/clubService';
+import { apiClient } from '../../services/apiClient';
 import { inr } from '../../mock/db';
 import { BarChart3, Download, Calendar, Users, DollarSign, Award, FileText } from 'lucide-react';
 
@@ -9,11 +10,35 @@ export const ReportsHubView = ({ session, activeClub, onToast }) => {
   const [dateRange, setDateRange] = useState('Current Semester (Fall 2026)');
 
   const club = clubService.getClub(activeClub.id);
-  const events = club.events || [];
-  const members = club.members || [];
-  const finance = club.finance || {};
-  const tickets = club.tickets || [];
+  const [events, setEvents] = useState(club.events || []);
+  const [members, setMembers] = useState(club.members || []);
+  const [finance, setFinance] = useState(club.finance || {});
+  const [tickets, setTickets] = useState(club.tickets || []);
   const reimbursements = club.reimbursements || [];
+
+  useEffect(() => {
+    // 1. Step 1 of replacing db.js with Backend APIs
+    // We fetch the real mock payloads from Express (Phase 9 implementation)
+    const loadBackendData = async () => {
+      try {
+        if (activeTab === 'events') {
+          const res = await apiClient.get('/reports/events');
+          // For now just logging to show integration, keeping local state sync 
+          // as we transition fully.
+          console.log('[Backend API Data - Events]', res.data);
+        } else if (activeTab === 'membership') {
+          const res = await apiClient.get('/reports/membership');
+          console.log('[Backend API Data - Membership]', res.data);
+        } else if (activeTab === 'finance') {
+          const res = await apiClient.get('/reports/financial');
+          console.log('[Backend API Data - Finance]', res.data);
+        }
+      } catch (err) {
+        console.error('API Error:', err);
+      }
+    };
+    loadBackendData();
+  }, [activeTab]);
 
   const handleExport = (type) => {
     if (onToast) onToast(`📄 Prototype: Simulated ${type.toUpperCase()} exported successfully!`);

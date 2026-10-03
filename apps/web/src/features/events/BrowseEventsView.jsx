@@ -4,6 +4,7 @@ import { DigitalEventTicket } from '../../components/ui/QRCodeCard';
 import { clubService } from '../../services/clubService';
 import { openRazorpayCheckout } from '../../services/paymentService';
 import { Calendar, MapPin, Ticket, Sparkles, AlertCircle, Search, Building2, CheckCircle2 } from 'lucide-react';
+import { Ticket, Calendar, MapPin } from 'lucide-react';
 
 export const BrowseEventsView = ({ session, activeClub, onToast, onNavigate }) => {
   const [selectedEvent, setSelectedEvent] = useState(null);
