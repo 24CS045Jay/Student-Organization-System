@@ -755,5 +755,101 @@ export const clubService = {
     }
 
     return `💡 **ClubSphere AI Insights for ${club.name}:**\n• Operating status is healthy with **${inr(club.finance.netBalance)}** cash reserves.\n• ${club.events.length} active events on schedule with ${club.members.length} registered club members.\n• Try asking: "How much did we spend?", "Which event earned the most?", or "Show unpaid reimbursements".`;
+  },
+
+  // --- Platform Super Admin Club Creation ---
+  createClubOrganization: (clubPayload, session) => {
+    const id = clubPayload.id || clubPayload.short.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const prefix = (clubPayload.prefix || clubPayload.short.substring(0, 3)).toUpperCase();
+    const domain = clubPayload.emailDomain?.startsWith('@') ? clubPayload.emailDomain.toLowerCase() : `@${clubPayload.emailDomain.toLowerCase()}`;
+    
+    // Create new club template in dbInstance
+    const newClub = {
+      id,
+      name: clubPayload.name,
+      short: clubPayload.short,
+      prefix,
+      category: clubPayload.category || 'General Club',
+      color: clubPayload.color || '#FFE853',
+      emailDomain: domain,
+      membershipTypes: [
+        { name: 'Standard Member', annualFee: 500, benefits: ['Event Discounts', 'Digital Member Pass'] },
+        { name: 'Core Executive', annualFee: 1000, benefits: ['VIP Badge', 'All Workshop Passes'] }
+      ],
+      members: [
+        {
+          id: `${prefix}-001`,
+          name: clubPayload.adminName || 'Club Admin',
+          email: clubPayload.adminEmail || `admin${domain}`,
+          studentId: '24ADM01',
+          dept: 'Student Affairs',
+          type: 'Core Executive',
+          exp: '2027-12-31',
+          startDate: new Date().toISOString().split('T')[0],
+          paid: 1,
+          status: 'Active',
+          photo: '🧑‍💼',
+          phone: '+91 99999 88888',
+          history: [{ action: 'Organization Founded', date: new Date().toISOString().split('T')[0] }]
+        }
+      ],
+      events: [],
+      tickets: [],
+      merchandise: [],
+      orders: [],
+      fundraisers: [],
+      tasks: [],
+      volunteers: [],
+      reimbursements: [],
+      finance: {
+        totalIncome: 10000,
+        totalExpenses: 2000,
+        netBalance: 8000,
+        incomeSources: [{ source: 'Initial Seed Grant', amount: 10000, count: 1 }],
+        expensesList: [{ id: `EXP-${prefix}-01`, title: 'Club Domain Setup & Branding', category: 'Operations', amount: 2000, date: new Date().toISOString().split('T')[0], approvedBy: 'Super Admin', receiptUrl: '' }],
+        budgetAllocated: 100000,
+        budgetSpent: 2000
+      },
+      sponsors: [],
+      donations: [],
+      certificates: [],
+      feedback: [],
+      announcements: [{ id: `ann-${id}-1`, title: `Welcome to ${clubPayload.name}!`, date: new Date().toISOString().split('T')[0], audience: 'All Members', channels: ['Website', 'Email'], status: 'Published', author: 'Super Admin', content: `The ${clubPayload.name} is officially onboarded to ClubSphere.`, reach: 1 }],
+      renewalReminders: []
+    };
+
+    dbInstance.data.clubs[id] = newClub;
+
+    // Add to platform organizations list
+    dbInstance.data.platform.organizations.push({
+      id,
+      name: clubPayload.name,
+      university: 'Campus Central',
+      college: 'Student Activities Directorate',
+      department: clubPayload.category,
+      tier: 'Pro Tier',
+      membersCount: 1,
+      emailDomain: domain,
+      status: 'Active'
+    });
+
+    dbInstance.save();
+    dbInstance.logAudit(id, session?.email || 'super_admin@clubsphere.demo', 'Super Admin', 'Created Club Organization', `Created new organization ${clubPayload.name} with domain ${domain}`, 'None', 'Active Organization');
+
+    return newClub;
+  },
+
+  deleteClubOrganization: (orgId, session) => {
+    if (dbInstance.data.clubs[orgId]) {
+      const clubName = dbInstance.data.clubs[orgId].name;
+      delete dbInstance.data.clubs[orgId];
+      if (dbInstance.data.platform?.organizations) {
+        dbInstance.data.platform.organizations = dbInstance.data.platform.organizations.filter(o => o.id !== orgId);
+      }
+      dbInstance.save();
+      dbInstance.logAudit('platform', session?.email || 'super_admin@clubsphere.demo', 'Super Admin', 'Deleted Club Organization', `Deleted organization ${clubName} (${orgId})`, 'Active', 'Deleted');
+      return true;
+    }
+    return false;
   }
 };
