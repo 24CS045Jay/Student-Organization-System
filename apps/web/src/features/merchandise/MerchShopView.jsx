@@ -27,6 +27,10 @@ export const MerchShopView = ({ session, activeClub, onToast, onNavigate }) => {
     const unitPrice = isMember ? selectedProduct.memberPrice : selectedProduct.nonMemberPrice;
     const totalAmt = unitPrice * orderQty;
 
+    const membersList = clubService.getMembers(activeClub.id) || [];
+    const currentMember = membersList.find(m => m.email?.toLowerCase() === session?.email?.toLowerCase());
+    const resolvedMemberId = currentMember?.id || session?.memberId || session?.studentId || (isMember ? `${activeClub.prefix}-001` : null);
+
     try {
       const order = clubService.orderMerchandise(
         activeClub.id,
@@ -38,7 +42,7 @@ export const MerchShopView = ({ session, activeClub, onToast, onNavigate }) => {
           totalAmt,
           customerName: session.name || 'Student Member',
           email: session.email || 'student@campus.edu',
-          memberId: `${activeClub.prefix}-001`,
+          memberId: resolvedMemberId,
           paymentMethod
         },
         session

@@ -74,6 +74,10 @@ export const BrowseEventsView = ({ session, activeClub, onToast, onNavigate }) =
         prefillName: session.name || 'Student Member',
         prefillEmail: session.email || 'student@campus.edu',
         onSuccess: (paymentResult) => {
+          const membersList = clubService.getMembers(targetClubId) || [];
+          const currentMember = membersList.find(m => m.email?.toLowerCase() === session?.email?.toLowerCase());
+          const resolvedMemberId = currentMember?.id || session?.memberId || session?.studentId || (isMemberDiscount ? `${targetPrefix}-001` : null);
+
           const ticket = clubService.buyTicket(
             targetClubId,
             selectedEvent.id,
@@ -81,7 +85,7 @@ export const BrowseEventsView = ({ session, activeClub, onToast, onNavigate }) =
               name: session.name || 'Student Member',
               email: session.email || 'student@campus.edu',
               isMember: isMemberDiscount,
-              memberId: isMemberDiscount ? `${targetPrefix}-001` : null
+              memberId: resolvedMemberId
             },
             session,
             paymentResult

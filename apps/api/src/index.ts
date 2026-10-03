@@ -16,6 +16,9 @@ import { platformRouter } from './routes/platform';
 import { aiRouter } from './routes/ai';
 import { healthRouter } from './routes/health';
 
+import { syncRouter } from './routes/sync';
+import { membershipService } from './services/membershipService';
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -37,6 +40,26 @@ app.use('/api/v1', differentiatorsRouter);
 app.use('/api/v1/platform', platformRouter);
 app.use('/api/v1/ai', aiRouter);
 app.use('/api/v1', healthRouter);
+app.use('/api/v1/sync', syncRouter);
+
+// Automated Membership Renewal & Expiration Scheduler (FR-06, FR-18)
+const runAutomatedReminders = () => {
+  const orgKeys = ['tech-club', 'cult-club', 'sports-club'];
+  orgKeys.forEach((slug) => {
+    try {
+      const res = membershipService.processDailyReminders(slug);
+      if (res.expired_count > 0 || res.reminders_created > 0) {
+        console.log(`[Automated Cron] Org ${slug}: Expired ${res.expired_count}, sent ${res.reminders_created} renewal notices (30/15/3 days).`);
+      }
+    } catch (e: any) {
+      console.error(`[Automated Cron Error] ${slug}:`, e.message);
+    }
+  });
+};
+
+// Initial trigger and recurring 1-hour interval
+runAutomatedReminders();
+setInterval(runAutomatedReminders, 60 * 60 * 1000);
 
 app.get('/', (req: any, res: any) => {
   res.json({

@@ -14,6 +14,35 @@ export const AttendanceView = ({ session, activeClub, onToast }) => {
   const memberAttendees = attendedTickets.filter(t => t.isMember).length;
   const nonMemberAttendees = attendedTickets.length - memberAttendees;
 
+  const handleExportCSV = () => {
+    if (tickets.length === 0) {
+      if (onToast) onToast('⚠️ No ticket or attendance records to export.');
+      return;
+    }
+    const headers = ['Ticket ID', 'Event ID', 'Event Name', 'Attendee Name', 'Email', 'Membership Type', 'Check-In Status', 'Check-In Time'];
+    const rows = tickets.map((t) => [
+      `"${t.id || ''}"`,
+      `"${t.eventId || ''}"`,
+      `"${(t.eventTitle || '').replace(/"/g, '""')}"`,
+      `"${(t.attendeeName || '').replace(/"/g, '""')}"`,
+      `"${t.email || ''}"`,
+      `"${t.isMember ? 'Club Member' : 'Guest'}"`,
+      `"${t.status || 'Valid'}"`,
+      `"${t.checkInTime || (t.status === 'Attended' ? 'Checked In' : 'Pending')}"`
+    ].join(','));
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `${activeClub.short || 'Club'}_Attendance_Roster_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    if (onToast) onToast(`📄 Exported ${tickets.length} attendance records to CSV.`);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
@@ -25,7 +54,7 @@ export const AttendanceView = ({ session, activeClub, onToast }) => {
             Real-time gate scan records, attendance ratios, and member participation metrics for {activeClub.name}.
           </p>
         </div>
-        <Button variant="black" size="sm" onClick={() => onToast && onToast('📄 Attendance log exported to CSV.')} icon={Download}>
+        <Button variant="black" size="sm" onClick={handleExportCSV} icon={Download}>
           Export Attendance Roster
         </Button>
       </div>

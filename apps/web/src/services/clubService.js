@@ -8,8 +8,30 @@ import { generateSignedQRToken, verifyQRToken } from './qrSecurityService';
 import { sendEmail, sendTicketConfirmationEmail } from './emailService';
 import { notificationService } from './notificationService';
 import { supabaseSync } from './supabaseService';
+import { aiService } from './aiService';
+import { apiClient } from './apiClient';
 
 export const clubService = {
+  // Central API Synchronization Helpers
+  syncToBackend: async (type, orgId, payload) => {
+    try {
+      await apiClient.post('/sync/mutation', { type, orgId, payload });
+    } catch (e) {
+      console.warn(`[Sync Notice] Central API sync deferred: ${e.message}`);
+    }
+  },
+
+  syncFullLedgerToBackend: async (orgId) => {
+    try {
+      const club = dbInstance.getClub(orgId);
+      await apiClient.post('/sync/state', club, {
+        headers: { 'x-org-id': orgId }
+      });
+    } catch (e) {
+      console.warn(`[Sync Notice] Full state sync deferred: ${e.message}`);
+    }
+  },
+
   // Tenant validation
   getClub: (orgId) => {
     return dbInstance.getClub(orgId);
@@ -82,6 +104,7 @@ export const clubService = {
     dbInstance.logAudit(orgId, session?.email, session?.role, 'Registered New Member', `Created ID ${newId} for ${newMember.name}`, 'None', newId);
     dbInstance.save();
     supabaseSync.syncMember(orgId, newMember);
+    clubService.syncToBackend('MEMBER_REGISTERED', orgId, newMember);
     return newMember;
   },
 
@@ -313,6 +336,7 @@ export const clubService = {
     dbInstance.save();
     supabaseSync.syncTicket(orgId, newTicket);
     supabaseSync.syncEvent(orgId, event);
+    clubService.syncToBackend('TICKET_PURCHASED', orgId, { ticket: newTicket, eventId: event.id });
 
     // Trigger transactional confirmation email (Phase 5)
     sendTicketConfirmationEmail({
@@ -503,6 +527,8 @@ export const clubService = {
       'Attended'
     );
     dbInstance.save();
+    clubService.syncToBackend('TICKET_CHECKIN', orgId, { ticketId: ticket.id, attendeeName: ticket.attendeeName, checkInTime: checkInTimestamp });
+    apiClient.post('/checkin', { ticketId: ticket.id, orgId }).catch(() => {});
 
     return {
       status: 'ATTENDED_SUCCESS',
@@ -721,6 +747,7 @@ export const clubService = {
 
     dbInstance.logAudit(orgId, session?.email, session?.role, 'Placed Merch Order', `Order ${ordId} for ${product.name} (${orderPayload.size} x ${reqQty}) = ₹${orderPayload.totalAmt}`, 'Stock Reserved', 'Paid & Ready');
     dbInstance.save();
+    clubService.syncToBackend('MERCH_ORDER', orgId, newOrder);
     return newOrder;
   },
 
@@ -1091,6 +1118,15 @@ export const clubService = {
     if (!club.donations) club.donations = [];
     club.donations.unshift(newDon);
 
+    // Update campaign progress if attached to a fundraiser
+    if (club.fundraisers) {
+      const fund = club.fundraisers.find(f => f.id === donData.campaignId || f.title === donData.campaign);
+      if (fund) {
+        fund.raised = (Number(fund.raised) || 0) + newDon.amount;
+        fund.donorCount = (Number(fund.donorCount) || 0) + 1;
+      }
+    }
+
     club.finance.totalIncome += newDon.amount;
     club.finance.netBalance += newDon.amount;
 
@@ -1157,50 +1193,25 @@ export const clubService = {
   },
 
   // --- AI Copilot (E, F, 15) ---
-  queryAICopilot: (orgId, query) => {
-    const q = query.toLowerCase();
+  queryAICopilot: async (orgId, query) => {
     const club = dbInstance.getClub(orgId);
+    try {
+      const response = await aiService.queryCopilot(club, query);
+      return response;
+    } catch (err) {
+      console.error('AI Copilot error:', err);
+      return "⚠️ Unable to contact AI Copilot service. Please try again.";
+    }
+  },
 
-    // Tenant Check: Check if user asks about another club
-    if (q.includes('cultural') && orgId !== 'cult') {
-      return `⚠️ **Tenant Isolation Guard (NFR-03)**: I am only authorized to access data for **${club.name}**. I cannot disclose financial records or member information for other campus organizations.`;
+  generateDynamicEventPlan: async (orgId, params) => {
+    const club = dbInstance.getClub(orgId);
+    try {
+      return await aiService.generateDynamicEventPlan(club, params);
+    } catch (err) {
+      console.error('AI Event Plan error:', err);
+      throw err;
     }
-    if (q.includes('sports') && orgId !== 'sport') {
-      return `⚠️ **Tenant Isolation Guard**: I do not have access to other clubs' private ledgers. Currently loaded session is for **${club.name}**.`;
-    }
-    if (q.includes('tech') && orgId !== 'tech') {
-      return `⚠️ **Tenant Isolation Guard (NFR-03)**: Access restricted. You are querying from **${club.name}**.`;
-    }
-
-    if (q.includes('spent') || q.includes('expense') || q.includes('expenses')) {
-      const topExp = club.finance.expensesList[0];
-      return `📊 **Financial Audit Report for ${club.short}:**\n• Total Expenses: **${inr(club.finance.totalExpenses)}** across ${club.finance.expensesList.length} ledger transactions.\n• Largest single expenditure: **${topExp?.title}** (${inr(topExp?.amount)}).\n• Budget utilization is currently at **${Math.round((club.finance.totalExpenses / club.finance.budgetAllocated) * 100)}%** of allocated quota.`;
-    }
-
-    if (q.includes('earned') || q.includes('most') || q.includes('revenue')) {
-      const topEvent = [...club.events].sort((a, b) => (b.sold * b.memberPrice) - (a.sold * a.memberPrice))[0];
-      return `🏆 **Top Revenue Driver for ${club.short}:**\n• **${topEvent.title}** generated approx **${inr(topEvent.sold * ((topEvent.memberPrice + topEvent.nonMemberPrice) / 2))}** with ${topEvent.sold}/${topEvent.capacity} tickets sold (${Math.round((topEvent.sold / topEvent.capacity) * 100)}% occupancy rate).`;
-    }
-
-    if (q.includes('money is left') || q.includes('balance') || q.includes('cash')) {
-      return `💰 **Current Cash Balance for ${club.short}:**\n• Net Available Balance: **${inr(club.finance.netBalance)}**\n• Total Income: **${inr(club.finance.totalIncome)}**\n• Total Expenses: **${inr(club.finance.totalExpenses)}**\n• Financial health score: **94/100 (Strong Liquidity)**`;
-    }
-
-    if (q.includes('reimbursement') || q.includes('unpaid')) {
-      const pending = club.reimbursements.filter(r => r.status !== 'Reimbursed');
-      return `📋 **Pending Claims for ${club.short}:**\n• Found **${pending.length} pending claims** totaling **${inr(pending.reduce((acc, r) => acc + r.amount, 0))}**.\n${pending.map(p => `• ${p.volunteerName}: ${inr(p.amount)} (${p.status}) - ${p.description}`).join('\n')}`;
-    }
-
-    if (q.includes('plan') || q.includes('hackathon') || q.includes('event planner')) {
-      return `✨ **AI Event Execution Plan Generated for ${club.short}:**\n• **Suggested Venue:** Central Computing Lab & Auditorium C\n• **Recommended Budget Split:** Venue (30%), Catering & Hydration (35%), Prizes/Trophies (25%), Marketing (10%)\n• **Optimal Pricing Strategy:** Member Pass ₹150 | Non-Member Pass ₹300 (Projected Gross Revenue: ₹48,000)\n• **Volunteers Required:** 8 members (3 Technical A/V, 2 Hospitality, 3 Registration)`;
-    }
-
-    if (q.includes('member') || q.includes('renew')) {
-      const expiredCount = club.members.filter(m => new Date(m.exp) < new Date() || !m.paid).length;
-      return `👥 **Membership Intelligence:**\n• Total Roster: **${club.members.length} members**\n• Active: **${club.members.length - expiredCount}** | Expired/Unpaid: **${expiredCount}**\n• Renewal conversion rate: **88.4%** this semester.`;
-    }
-
-    return `💡 **ClubSphere AI Insights for ${club.name}:**\n• Operating status is healthy with **${inr(club.finance.netBalance)}** cash reserves.\n• ${club.events.length} active events on schedule with ${club.members.length} registered club members.\n• Try asking: "How much did we spend?", "Which event earned the most?", or "Show unpaid reimbursements".`;
   },
 
   // --- Platform Super Admin Club Creation ---
