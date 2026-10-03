@@ -449,19 +449,103 @@ export const clubService = {
     return newTask;
   },
 
-  logVolunteerHours: (orgId, volId, hoursToAdd, session) => {
+  // --- Tasks & Volunteers (FR-12 to FR-14) ---
+  getVolunteers: (orgId) => {
     const club = dbInstance.getClub(orgId);
-    const vol = club.volunteers.find(v => v.id === volId);
-    if (!vol) throw new Error('Volunteer not found');
+    return club.volunteers || [];
+  },
 
-    const oldHours = vol.hours;
-    vol.hours += Number(hoursToAdd);
+  getVolunteerForUser: (orgId, session) => {
+    const club = dbInstance.getClub(orgId);
+    if (!club.volunteers) club.volunteers = [];
+
+    const userEmail = (session?.email || '').trim().toLowerCase();
+    const userName = (session?.name || '').trim().toLowerCase();
+
+    // Find existing volunteer record
+    let vol = club.volunteers.find(v => 
+      (v.email && v.email.toLowerCase() === userEmail) ||
+      (userName && v.name && v.name.toLowerCase() === userName)
+    );
+
+    if (!vol) {
+      // Look up user in database
+      const registeredUser = dbInstance.findUserByClubEmail(userEmail) || dbInstance.findUserByPersonalEmail(userEmail, orgId);
+      const initialHours = Number(registeredUser?.service_hours) || 24;
+      const initialRating = Number(registeredUser?.rating) || 4.9;
+
+      vol = {
+        id: `VOL-${club.prefix}-${Math.floor(100 + Math.random() * 900)}`,
+        name: session?.name || registeredUser?.name || 'Club Volunteer',
+        email: session?.email || registeredUser?.clubEmail || registeredUser?.personalEmail || 'volunteer@campus.edu',
+        phone: registeredUser?.phone || '+91 98250 11223',
+        roleTitle: registeredUser?.department ? `${registeredUser.department} Volunteer` : 'Event Operations Volunteer',
+        hours: initialHours,
+        service_hours: initialHours,
+        badge: initialHours >= 50 ? 'Silver Contributor (50h+)' : initialHours >= 25 ? 'Bronze Contributor (25h+)' : 'Bronze Contributor',
+        rating: initialRating,
+        skills: ['Event Logistics', 'Gate Registration', 'Stage AV'],
+        activeTasks: 1
+      };
+
+      club.volunteers.push(vol);
+      dbInstance.save();
+      supabaseSync.syncVolunteer(orgId, vol);
+    }
+    return vol;
+  },
+
+  logVolunteerHours: (orgId, volIdOrEmail, hoursToAdd, session) => {
+    const club = dbInstance.getClub(orgId);
+    if (!club.volunteers) club.volunteers = [];
+
+    const clean = (volIdOrEmail || '').toString().trim().toLowerCase();
+    const vol = club.volunteers.find(v => 
+      v.id.toLowerCase() === clean || 
+      (v.email && v.email.toLowerCase() === clean) ||
+      (session?.email && v.email && v.email.toLowerCase() === session.email.toLowerCase())
+    );
+
+    if (!vol) throw new Error('Volunteer profile not found in club database');
+
+    const oldHours = Number(vol.hours || vol.service_hours) || 0;
+    const newHours = oldHours + Number(hoursToAdd);
+    vol.hours = newHours;
+    vol.service_hours = newHours;
+
     if (vol.hours >= 100) vol.badge = 'Gold Legend (100h+)';
     else if (vol.hours >= 50) vol.badge = 'Silver Contributor (50h+)';
     else if (vol.hours >= 25) vol.badge = 'Bronze Contributor (25h+)';
+    else vol.badge = 'Bronze Contributor';
 
     dbInstance.logAudit(orgId, session?.email, session?.role, 'Logged Volunteer Hours', `Added ${hoursToAdd}h for ${vol.name} (Total: ${vol.hours}h)`, `${oldHours}h`, `${vol.hours}h`);
     dbInstance.save();
+
+    // Live Sync to database
+    supabaseSync.syncVolunteer(orgId, vol);
+
+    return vol;
+  },
+
+  updateVolunteerRating: (orgId, volIdOrEmail, newRating, session) => {
+    const club = dbInstance.getClub(orgId);
+    if (!club.volunteers) club.volunteers = [];
+
+    const clean = (volIdOrEmail || '').toString().trim().toLowerCase();
+    const vol = club.volunteers.find(v => 
+      v.id.toLowerCase() === clean || 
+      (v.email && v.email.toLowerCase() === clean)
+    );
+
+    if (!vol) throw new Error('Volunteer profile not found');
+
+    const oldRating = vol.rating;
+    vol.rating = Number(Number(newRating).toFixed(2));
+
+    dbInstance.logAudit(orgId, session?.email, session?.role, 'Updated Volunteer Rating', `Rating for ${vol.name} updated to ${vol.rating}`, `${oldRating}`, `${vol.rating}`);
+    dbInstance.save();
+
+    supabaseSync.syncVolunteer(orgId, vol);
     return vol;
   },
 
@@ -473,17 +557,31 @@ export const clubService = {
 
   getReimbursements: (orgId) => {
     const club = dbInstance.getClub(orgId);
-    return [...club.reimbursements];
+    return club.reimbursements || [];
+  },
+
+  getUserReimbursements: (orgId, email, name) => {
+    const club = dbInstance.getClub(orgId);
+    const list = club.reimbursements || [];
+    const cleanEmail = (email || '').toLowerCase().trim();
+    const cleanName = (name || '').toLowerCase().trim();
+
+    return list.filter(r => 
+      (r.volunteerEmail && cleanEmail && r.volunteerEmail.toLowerCase() === cleanEmail) ||
+      (r.volunteerName && cleanName && r.volunteerName.toLowerCase() === cleanName)
+    );
   },
 
   submitReimbursement: (orgId, reimbData, session) => {
     const club = dbInstance.getClub(orgId);
+    if (!club.reimbursements) club.reimbursements = [];
+
     const newId = `REIMB-${club.prefix}-${Math.floor(100 + Math.random() * 900)}`;
     const newReimb = {
       id: newId,
       volunteerName: reimbData.volunteerName || session?.name || 'Volunteer Member',
-      volunteerEmail: reimbData.volunteerEmail || session?.email || 'volunteer@tech.demo',
-      category: reimbData.category || 'Supplies',
+      volunteerEmail: reimbData.volunteerEmail || session?.email || 'volunteer@campus.edu',
+      category: reimbData.category || 'Supplies & Printing',
       event: reimbData.event || 'General Club Operations',
       amount: Number(reimbData.amount) || 0,
       date: new Date().toISOString().split('T')[0],
@@ -497,11 +595,17 @@ export const clubService = {
     club.reimbursements.unshift(newReimb);
     dbInstance.logAudit(orgId, session?.email, session?.role, 'Submitted Reimbursement Claim', `${newReimb.volunteerName} claimed ₹${newReimb.amount} for "${newReimb.description}"`, 'None', newId);
     dbInstance.save();
+
+    // Live Sync to database
+    supabaseSync.syncReimbursement(orgId, newReimb);
+
     return newReimb;
   },
 
   advanceReimbursementStatus: (orgId, reimbId, newStatus, session) => {
     const club = dbInstance.getClub(orgId);
+    if (!club.reimbursements) club.reimbursements = [];
+
     const reimb = club.reimbursements.find(r => r.id === reimbId);
     if (!reimb) throw new Error('Reimbursement not found');
 

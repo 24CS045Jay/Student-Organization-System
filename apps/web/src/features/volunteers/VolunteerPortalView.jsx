@@ -18,23 +18,13 @@ export const VolunteerPortalView = ({ session, activeClub, onToast, onDataChange
   });
 
   const club = clubService.getClub(activeClub.id);
-  const volunteers = club.volunteers || [];
-  const currentVol = volunteers.find(v => v.email.toLowerCase() === session.email.toLowerCase()) || volunteers[0] || {
-    name: session.name || 'Volunteer Lead',
-    hours: 48,
-    badge: 'Silver Contributor',
-    rating: 4.9,
-    skills: ['Event Logistics', 'Social Media', 'Stage Management'],
-    activeTasks: 2
-  };
+  const currentVol = clubService.getVolunteerForUser(activeClub.id, session);
 
   const handleLogHours = () => {
     try {
-      if (currentVol.id) {
-        clubService.logVolunteerHours(activeClub.id, currentVol.id, hoursToAdd, session);
-      }
+      const updated = clubService.logVolunteerHours(activeClub.id, currentVol.id || session.email, hoursToAdd, session);
       setIsLogHoursOpen(false);
-      if (onToast) onToast(`⏱️ Logged +${hoursToAdd} hours to volunteer record!`);
+      if (onToast) onToast(`⏱️ Logged +${hoursToAdd} hours to database! Verified total: ${updated.hours}h`);
       if (onDataChange) onDataChange();
     } catch (err) {
       alert(err.message);
@@ -47,8 +37,8 @@ export const VolunteerPortalView = ({ session, activeClub, onToast, onDataChange
       const reimb = clubService.submitReimbursement(
         activeClub.id,
         {
-          volunteerName: currentVol.name,
-          volunteerEmail: session.email,
+          volunteerName: currentVol.name || session?.name,
+          volunteerEmail: session?.email || currentVol.email,
           ...reimbForm
         },
         session

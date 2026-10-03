@@ -9,9 +9,25 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
   const [renewPlan, setRenewPlan] = useState('Standard');
 
   // Find member record matching current session user
-  const members = clubService.getMembers(activeClub.id);
-  const currentMember = members.find(m => m.email.toLowerCase() === session.email.toLowerCase()) || members[0];
-  const membershipTypes = clubService.getMembershipTypes(activeClub.id);
+  const members = clubService.getMembers(activeClub?.id) || [];
+  const currentMember = members.find(
+    m => m.email?.toLowerCase() === session?.email?.toLowerCase() || 
+         m.personalEmail?.toLowerCase() === session?.email?.toLowerCase()
+  ) || members[0] || {
+    id: `${activeClub?.prefix || 'CLB'}-001`,
+    name: session?.name || 'Club Member',
+    studentId: '24CS001',
+    dept: activeClub?.department || 'Student Affairs',
+    type: 'Standard Member',
+    exp: '2027-10-01',
+    startDate: '2026-01-01',
+    paid: 1,
+    attendanceCount: 0,
+    photo: '🧑‍🎓'
+  };
+
+  const membershipTypes = clubService.getMembershipTypes(activeClub?.id) || [];
+  const clubEvents = clubService.getEvents(activeClub?.id) || [];
 
   const handleRenew = () => {
     try {
@@ -32,7 +48,7 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
       <div
         className="neo-box"
         style={{
-          background: `linear-gradient(135deg, ${activeClub.color} 0%, #FFFDF9 100%)`,
+          background: `linear-gradient(135deg, ${activeClub?.color || '#FFE853'} 0%, #FFFDF9 100%)`,
           padding: '24px 28px',
           display: 'flex',
           justifyContent: 'space-between',
@@ -65,8 +81,8 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
         <div>
           <DigitalMemberCard
             member={currentMember}
-            clubName={activeClub.name}
-            accentColor={activeClub.color}
+            clubName={activeClub?.name || 'Club'}
+            accentColor={activeClub?.color || 'var(--accent-yellow)'}
             onRenew={() => setShowRenewModal(true)}
           />
 
@@ -75,7 +91,7 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
             <Card title="📜 Membership History Timeline" headerBg="var(--accent-purple)">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {(currentMember?.history || [
-                  { date: currentMember?.startDate || '2026-01-15', action: `Enrolled as ${currentMember?.type}`, amt: 499 }
+                  { date: currentMember?.startDate || '2026-01-15', action: `Enrolled as ${currentMember?.type || 'Standard Member'}`, amt: 499 }
                 ]).map((h, i) => (
                   <div
                     key={i}

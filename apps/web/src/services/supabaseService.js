@@ -217,22 +217,74 @@ export const supabaseSync = {
     }
   },
 
-  // --- 8. INITIAL CLOUD HYDRATION ---
+  // --- 8. VOLUNTEERS & SERVICE HOURS (Database Sync) ---
+  syncVolunteer: async (clubId, volunteer) => {
+    if (!supabase) return;
+    try {
+      const payload = {
+        id: volunteer.id,
+        club_id: clubId,
+        name: volunteer.name,
+        email: volunteer.email,
+        phone: volunteer.phone || '',
+        role_title: volunteer.roleTitle || 'Volunteer',
+        service_hours: Number(volunteer.hours || volunteer.service_hours) || 0,
+        badge_tier: volunteer.badge || 'Bronze Contributor',
+        rating: Number(volunteer.rating) || 5.0,
+        skills: volunteer.skills || []
+      };
+
+      await supabase.from('volunteers').upsert(payload, { onConflict: 'id' });
+    } catch (err) {
+      console.warn('[Supabase Sync] volunteer sync note:', err.message);
+    }
+  },
+
+  // --- 9. EXPENSE REIMBURSEMENTS (Database Sync) ---
+  syncReimbursement: async (clubId, reimb) => {
+    if (!supabase) return;
+    try {
+      const payload = {
+        id: reimb.id,
+        club_id: clubId,
+        volunteer_name: reimb.volunteerName,
+        volunteer_email: reimb.volunteerEmail,
+        category: reimb.category,
+        event_title: reimb.event || '',
+        amount: Number(reimb.amount) || 0,
+        claim_date: reimb.date || new Date().toISOString().split('T')[0],
+        description: reimb.description || '',
+        receipt_url: reimb.receiptUrl || '',
+        status: reimb.status || 'Submitted',
+        approved_by: reimb.approver || ''
+      };
+
+      await supabase.from('reimbursements').upsert(payload, { onConflict: 'id' });
+    } catch (err) {
+      console.warn('[Supabase Sync] reimbursement sync note:', err.message);
+    }
+  },
+
+  // --- 10. INITIAL CLOUD HYDRATION ---
   fetchCloudDatabase: async () => {
     if (!supabase) return null;
     try {
-      const [clubsRes, usersRes, eventsRes, tasksRes] = await Promise.all([
+      const [clubsRes, usersRes, eventsRes, tasksRes, volsRes, reimbsRes] = await Promise.all([
         supabase.from('clubs').select('*'),
         supabase.from('users').select('*'),
         supabase.from('events').select('*'),
-        supabase.from('tasks').select('*')
+        supabase.from('tasks').select('*'),
+        supabase.from('volunteers').select('*'),
+        supabase.from('reimbursements').select('*')
       ]);
 
       return {
         clubs: clubsRes.data || [],
         users: usersRes.data || [],
         events: eventsRes.data || [],
-        tasks: tasksRes.data || []
+        tasks: tasksRes.data || [],
+        volunteers: volsRes?.data || [],
+        reimbursements: reimbsRes?.data || []
       };
     } catch (err) {
       console.warn('[Supabase Sync] Cloud fetch note:', err.message);

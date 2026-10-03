@@ -107,7 +107,9 @@ export const Sidebar = ({
     ]
   };
 
-  const navItems = navConfigs[role] || navConfigs.admin;
+  navConfigs.member = navConfigs.student;
+
+  const navItems = navConfigs[role] || navConfigs.student || navConfigs.admin;
 
   return (
     <aside
