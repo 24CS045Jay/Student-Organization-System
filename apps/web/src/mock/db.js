@@ -1,12 +1,12 @@
 // ==========================================================================
 // ClubSphere In-Memory + LocalStorage Database
-// Clean Database with Table Schemas for Live Dynamic Club Management
+// Multi-Tenant Clean Relational Database Engine with User Registry
 // ==========================================================================
 
 export const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 
-// Updated storage key to start 100% fresh without any legacy dummy data
-const STORAGE_KEY = 'clubsphere_live_db_v4';
+// Updated storage key to ensure 100% sync with users table
+const STORAGE_KEY = 'clubsphere_live_db_v5';
 
 // Fresh initial database state with baseline campus organizations
 export const INITIAL_CLUBS_DATA = {
@@ -70,6 +70,9 @@ export const INITIAL_CLUBS_DATA = {
   }
 };
 
+// Fresh initial users table
+export const INITIAL_USERS_DATA = [];
+
 export const INITIAL_PLATFORM_DATA = {
   organizations: [],
   plans: [
@@ -112,7 +115,8 @@ class MockDatabase {
           ? parsed.clubs
           : JSON.parse(JSON.stringify(INITIAL_CLUBS_DATA));
         return {
-          clubs,
+          clubs: parsed.clubs || {},
+          users: parsed.users || [],
           platform: parsed.platform || JSON.parse(JSON.stringify(INITIAL_PLATFORM_DATA)),
           auditLogs: parsed.auditLogs || [],
           notifications: parsed.notifications || []
@@ -123,6 +127,7 @@ class MockDatabase {
     }
     return {
       clubs: JSON.parse(JSON.stringify(INITIAL_CLUBS_DATA)),
+      users: JSON.parse(JSON.stringify(INITIAL_USERS_DATA)),
       platform: JSON.parse(JSON.stringify(INITIAL_PLATFORM_DATA)),
       auditLogs: JSON.parse(JSON.stringify(INITIAL_AUDIT_LOGS)),
       notifications: []
@@ -140,6 +145,7 @@ class MockDatabase {
   reset() {
     this.data = {
       clubs: JSON.parse(JSON.stringify(INITIAL_CLUBS_DATA)),
+      users: JSON.parse(JSON.stringify(INITIAL_USERS_DATA)),
       platform: JSON.parse(JSON.stringify(INITIAL_PLATFORM_DATA)),
       auditLogs: JSON.parse(JSON.stringify(INITIAL_AUDIT_LOGS)),
       notifications: []
@@ -162,6 +168,25 @@ class MockDatabase {
     return this.data.clubs[orgId];
   }
 
+  getAllUsers() {
+    if (!this.data.users) this.data.users = [];
+    return [...this.data.users];
+  }
+
+  findUserByClubEmail(email) {
+    if (!this.data.users) this.data.users = [];
+    const clean = (email || '').trim().toLowerCase();
+    return this.data.users.find(u => u.clubEmail.toLowerCase() === clean);
+  }
+
+  findUserByPersonalEmail(email, orgId = null) {
+    if (!this.data.users) this.data.users = [];
+    const clean = (email || '').trim().toLowerCase();
+    return this.data.users.find(u => 
+      u.personalEmail?.toLowerCase() === clean && (!orgId || u.orgId === orgId)
+    );
+  }
+
   logAudit(orgId, user, role, action, details, oldValue = '', newValue = '') {
     const entry = {
       id: 'aud-' + Math.random().toString(36).substring(2, 9),
@@ -174,6 +199,7 @@ class MockDatabase {
       newValue: String(newValue),
       timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + ', Today'
     };
+    if (!this.data.auditLogs) this.data.auditLogs = [];
     this.data.auditLogs.unshift(entry);
     if (this.data.auditLogs.length > 100) this.data.auditLogs.pop();
     this.save();

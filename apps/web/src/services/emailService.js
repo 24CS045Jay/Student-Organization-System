@@ -4,7 +4,7 @@
 // ==============================================================================
 
 const RESEND_API_KEY = import.meta.env.VITE_RESEND_API_KEY || import.meta.env.RESEND_API_KEY || '';
-const FROM_EMAIL = 'onboarding@resend.dev'; // Resend free test domain
+const FROM_EMAIL = import.meta.env.VITE_RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
 /**
  * Dispatches an email via Resend API with automatic graceful offline logging

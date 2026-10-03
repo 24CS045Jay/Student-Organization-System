@@ -7,13 +7,7 @@ import { dbInstance, inr } from '../mock/db';
 import { generateSignedQRToken, verifyQRToken } from './qrSecurityService';
 import { sendEmail, sendTicketConfirmationEmail } from './emailService';
 import { notificationService } from './notificationService';
-import { supabase } from './supabaseClient';
-
-const ORG_UUID_MAP = {
-  'tech': '00000000-0000-0000-0000-000000000001',
-  'cult': '00000000-0000-0000-0000-000000000002',
-  'sport': '00000000-0000-0000-0000-000000000003'
-};
+import { supabaseSync } from './supabaseService';
 
 export const clubService = {
   // Tenant validation
@@ -909,6 +903,389 @@ export const clubService = {
     return newClub;
   },
 
+  // --- Centralized Database Authentication & Credential Management ---
+  generateClubEmail: (name, role, domain) => {
+    const cleanDomain = domain?.startsWith('@') ? domain.toLowerCase() : `@${(domain || 'campus.edu').toLowerCase()}`;
+    const cleanName = (name || 'user')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+    const cleanRole = (role || 'member')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+      .replace('student', 'member')
+      .replace('event_manager', 'manager');
+
+    let baseEmail = `${cleanName}${cleanRole}${cleanDomain}`;
+    let finalEmail = baseEmail;
+    let counter = 1;
+
+    if (!dbInstance.data.users) dbInstance.data.users = [];
+
+    while (dbInstance.data.users.some(u => u.clubEmail.toLowerCase() === finalEmail.toLowerCase())) {
+      counter++;
+      finalEmail = `${cleanName}${cleanRole}${counter}${cleanDomain}`;
+    }
+
+    return finalEmail;
+  },
+
+  signUpUser: (payload) => {
+    const { name, personalEmail, role = 'student', orgId, password, studentRollNo, department, phone } = payload;
+
+    if (!personalEmail || !personalEmail.includes('@')) {
+      throw new Error('Please enter a valid personal email address.');
+    }
+
+    const club = dbInstance.data.clubs[orgId];
+    if (!club) {
+      throw new Error('Selected club organization does not exist.');
+    }
+
+    if (!dbInstance.data.users) dbInstance.data.users = [];
+
+    // Check if personal email is already registered in this specific club
+    const existing = dbInstance.data.users.find(
+      u => u.personalEmail?.toLowerCase() === personalEmail.trim().toLowerCase() && u.orgId === orgId
+    );
+
+    if (existing) {
+      throw new Error(`An account already exists for ${personalEmail} in ${club.name}. Your assigned club email is "${existing.clubEmail}". Please sign in directly.`);
+    }
+
+    // Generate unique official club email
+    const assignedClubEmail = clubService.generateClubEmail(name, role, club.emailDomain);
+    const initialPassword = password || '12345678';
+    const userId = `usr-${orgId}-${Date.now().toString(36)}`;
+
+    const newUser = {
+      id: userId,
+      name: name.trim(),
+      personalEmail: personalEmail.trim().toLowerCase(),
+      clubEmail: assignedClubEmail,
+      password: initialPassword,
+      role: role,
+      orgId: orgId,
+      clubName: club.name,
+      studentRollNo: studentRollNo || `24CS${Math.floor(100 + Math.random() * 900)}`,
+      department: department || club.department || 'Student Body',
+      phone: phone || '+91 98765 43210',
+      passwordChanged: false,
+      createdAt: new Date().toISOString()
+    };
+
+    dbInstance.data.users.push(newUser);
+
+    // Also register in club.members roster
+    const count = (club.members || []).length + 1;
+    const memberId = `${club.prefix}-${String(count).padStart(3, '0')}`;
+    const expDate = new Date();
+    expDate.setFullYear(expDate.getFullYear() + 1);
+
+    if (!club.members) club.members = [];
+    club.members.unshift({
+      id: memberId,
+      name: newUser.name,
+      email: newUser.clubEmail,
+      personalEmail: newUser.personalEmail,
+      studentId: newUser.studentRollNo,
+      dept: newUser.department,
+      type: role === 'admin' ? 'Core Executive' : 'Standard Member',
+      exp: expDate.toISOString().split('T')[0],
+      startDate: new Date().toISOString().split('T')[0],
+      paid: 1,
+      status: 'Active',
+      photo: '🧑‍🎓',
+      phone: newUser.phone,
+      attendanceCount: 0,
+      history: [{ date: new Date().toISOString().split('T')[0], action: `Registered with assigned email ${newUser.clubEmail}`, amt: 0 }]
+    });
+
+    if (club.stats) {
+      club.stats.membersCount = club.members.length;
+    }
+
+    dbInstance.save();
+    dbInstance.logAudit(orgId, newUser.clubEmail, role, 'User Registered', `Assigned official email ${newUser.clubEmail} mapped to personal email ${newUser.personalEmail}`, 'None', 'Active');
+
+    // Live Sync to Supabase PostgreSQL Database Tables
+    supabaseSync.syncUser(newUser);
+    supabaseSync.syncMember(orgId, club.members[0]);
+
+    // Simulate sending transactional welcome email
+    sendEmail({
+      to: newUser.personalEmail,
+      subject: `🎉 Your Official ${club.name} Login Credentials`,
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; background-color: #FAF5EE; border: 2px solid #000;">
+          <h2>Welcome to ${club.name}!</h2>
+          <p>Your institutional club account has been provisioned on ClubSphere.</p>
+          <div style="background-color: #FFF; padding: 15px; border: 2px solid #000; margin: 15px 0;">
+            <p><strong>Official Club Login Email:</strong> <code style="color: #2563EB; font-size: 16px;">${newUser.clubEmail}</code></p>
+            <p><strong>Initial Password:</strong> <code>${newUser.password}</code></p>
+            <p><strong>Assigned Role:</strong> ${newUser.role.toUpperCase()}</p>
+          </div>
+          <p>You can now log in to the portal using this official club email.</p>
+        </div>
+      `
+    }).catch(console.error);
+
+    return {
+      success: true,
+      user: newUser,
+      assignedClubEmail: newUser.clubEmail,
+      initialPassword: newUser.password,
+      clubName: club.name
+    };
+  },
+
+  loginUser: (payload) => {
+    const { email, password } = payload;
+    const cleanEmail = (email || '').trim().toLowerCase();
+
+    if (!cleanEmail) {
+      return { success: false, error: 'Please enter your assigned club email.' };
+    }
+
+    if (!dbInstance.data.users) dbInstance.data.users = [];
+
+    // 1. Direct match by assigned club email
+    let user = dbInstance.data.users.find(u => u.clubEmail.toLowerCase() === cleanEmail);
+
+    // 2. If not matched, check if they entered their personal email
+    if (!user) {
+      const matchedByPersonal = dbInstance.data.users.find(u => u.personalEmail?.toLowerCase() === cleanEmail);
+      if (matchedByPersonal) {
+        return {
+          success: false,
+          isPersonalEmail: true,
+          assignedClubEmail: matchedByPersonal.clubEmail,
+          error: `⚠️ You entered your personal email. Please sign in using your official platform email: "${matchedByPersonal.clubEmail}".`
+        };
+      }
+      return {
+        success: false,
+        error: `❌ No account found matching "${cleanEmail}". Please ensure your club is onboarded and you have Signed Up.`
+      };
+    }
+
+    // 3. Verify password
+    if (user.password !== password) {
+      return {
+        success: false,
+        error: '❌ Incorrect password. Please check your credentials.'
+      };
+    }
+
+    // 4. Verify club exists
+    const club = dbInstance.data.clubs[user.orgId];
+    if (!club && user.orgId !== 'platform') {
+      return {
+        success: false,
+        error: '❌ The club organization associated with this account is inactive or deleted.'
+      };
+    }
+
+    return {
+      success: true,
+      session: {
+        role: user.role,
+        orgId: user.orgId,
+        email: user.clubEmail,
+        name: user.name,
+        personalEmail: user.personalEmail
+      }
+    };
+  },
+
+  updateUserPassword: (clubEmail, oldPassword, newPassword) => {
+    if (!dbInstance.data.users) dbInstance.data.users = [];
+    const user = dbInstance.data.users.find(u => u.clubEmail.toLowerCase() === (clubEmail || '').trim().toLowerCase());
+    if (!user) throw new Error('User not found.');
+
+    if (user.password !== oldPassword) {
+      throw new Error('Current password does not match.');
+    }
+
+    if (!newPassword || newPassword.length < 4) {
+      throw new Error('New password must be at least 4 characters.');
+    }
+
+    user.password = newPassword;
+    user.passwordChanged = true;
+    dbInstance.save();
+    dbInstance.logAudit(user.orgId, user.clubEmail, user.role, 'Password Updated', 'User changed their account password', 'Old Password', 'New Password');
+
+    // Live Sync password update to Supabase
+    supabaseSync.updateUserPassword(user.clubEmail, newPassword);
+
+    return true;
+  },
+
+  // --- Platform Super Admin Club Creation ---
+  createClubOrganization: (clubPayload, session) => {
+    const id = clubPayload.id || clubPayload.short.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const prefix = (clubPayload.prefix || clubPayload.short.substring(0, 3)).toUpperCase();
+    const domain = clubPayload.emailDomain?.startsWith('@') ? clubPayload.emailDomain.toLowerCase() : `@${clubPayload.emailDomain.toLowerCase()}`;
+    const initialGrant = Number(clubPayload.initialGrant) || 0;
+    const membershipFee = Number(clubPayload.membershipFee) || 500;
+    
+    // Generate admin club email: e.g. nameadmin@domain.com
+    const cleanAdminName = (clubPayload.adminName || 'admin').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const adminClubEmail = `${cleanAdminName}admin${domain}`;
+    const adminPersonalEmail = clubPayload.adminPersonalEmail || clubPayload.contactEmail || `president@gmail.com`;
+    const adminInitialPassword = '12345678';
+
+    // Create new clean club template in dbInstance with complete table schemas
+    const newClub = {
+      id,
+      name: clubPayload.name,
+      short: clubPayload.short || clubPayload.name.split(' ')[0],
+      prefix,
+      category: clubPayload.category || 'General Club',
+      department: clubPayload.department || 'Student Activities Directorate',
+      facultyAdvisor: clubPayload.facultyAdvisor || 'Faculty Coordinator',
+      color: clubPayload.color || '#FFE853',
+      accentColor: '#FFD24C',
+      banner: `⚡ Welcome to ${clubPayload.name}`,
+      tagline: clubPayload.tagline || `Official ${clubPayload.name} Student Organization`,
+      description: clubPayload.description || `Active student organization on campus.`,
+      tags: clubPayload.tags || ['Campus', 'Club'],
+      emailDomain: domain,
+      contactEmail: clubPayload.contactEmail || `info${domain}`,
+      stats: {
+        membersCount: 1,
+        activeEvents: 0,
+        totalRevenue: initialGrant,
+        volunteersCount: 0
+      },
+      membershipTypes: [
+        { id: `mt-${id}-1`, name: 'Standard Member', price: membershipFee, durationMonths: 12, ticketDiscount: 15, merchDiscount: 10, perks: ['Discounted entry to workshops', 'Access to club hub', 'Digital Certificate'] },
+        { id: `mt-${id}-2`, name: 'Premium Pro Clubber', price: membershipFee * 2, durationMonths: 12, ticketDiscount: 35, merchDiscount: 20, perks: ['Priority workshop seating', 'Exclusive Merchandise pass', 'Mentorship access'] }
+      ],
+      members: [
+        {
+          id: `${prefix}-001`,
+          name: clubPayload.adminName || 'Club President / Admin',
+          email: adminClubEmail,
+          personalEmail: adminPersonalEmail,
+          studentId: '24ADM01',
+          dept: clubPayload.department || 'Executive Board',
+          type: 'Premium Pro Clubber',
+          exp: '2028-12-31',
+          startDate: new Date().toISOString().split('T')[0],
+          paid: 1,
+          status: 'Active',
+          photo: '🧑‍💼',
+          phone: '+91 99999 88888',
+          attendanceCount: 0,
+          history: [{ action: 'Organization Founded & Admin Registered', date: new Date().toISOString().split('T')[0], amt: initialGrant }]
+        }
+      ],
+      events: [],
+      tickets: [],
+      merchandise: [],
+      orders: [],
+      fundraisers: [],
+      tasks: [],
+      volunteers: [],
+      reimbursements: [],
+      finance: {
+        totalIncome: initialGrant,
+        totalExpenses: 0,
+        netBalance: initialGrant,
+        incomeSources: initialGrant > 0 ? [{ source: 'Initial University Seed Grant', amount: initialGrant, count: 1 }] : [],
+        expensesList: [],
+        budgetAllocated: initialGrant * 2 || 50000,
+        budgetSpent: 0
+      },
+      sponsors: [],
+      donations: [],
+      certificates: [],
+      feedback: [],
+      announcements: [
+        {
+          id: `ann-${id}-1`,
+          title: `Welcome to ${clubPayload.name}!`,
+          date: new Date().toISOString().split('T')[0],
+          audience: 'All Members',
+          channels: ['Website', 'Email'],
+          status: 'Published',
+          author: 'Super Admin',
+          content: `The ${clubPayload.name} is officially onboarded to ClubSphere.`,
+          reach: 1
+        }
+      ],
+      renewalReminders: []
+    };
+
+    if (!dbInstance.data.clubs) {
+      dbInstance.data.clubs = {};
+    }
+    dbInstance.data.clubs[id] = newClub;
+
+    // Provision admin account in global users database table
+    if (!dbInstance.data.users) dbInstance.data.users = [];
+    // Remove previous admin if exists
+    dbInstance.data.users = dbInstance.data.users.filter(u => u.clubEmail.toLowerCase() !== adminClubEmail.toLowerCase());
+    dbInstance.data.users.push({
+      id: `usr-${id}-admin`,
+      name: clubPayload.adminName || 'Club President',
+      personalEmail: adminPersonalEmail,
+      clubEmail: adminClubEmail,
+      password: adminInitialPassword,
+      role: 'admin',
+      orgId: id,
+      clubName: clubPayload.name,
+      studentRollNo: '24ADM01',
+      department: clubPayload.department || 'Executive Board',
+      phone: '+91 99999 88888',
+      passwordChanged: false,
+      createdAt: new Date().toISOString()
+    });
+
+    // Add to platform organizations list
+    if (!dbInstance.data.platform) {
+      dbInstance.data.platform = { organizations: [] };
+    }
+    if (!dbInstance.data.platform.organizations) {
+      dbInstance.data.platform.organizations = [];
+    }
+
+    dbInstance.data.platform.organizations.push({
+      id,
+      name: clubPayload.name,
+      university: 'Campus Central',
+      college: 'Student Activities Directorate',
+      department: clubPayload.category,
+      tier: 'Pro Tier',
+      membersCount: newClub.members.length,
+      emailDomain: domain,
+      adminClubEmail: adminClubEmail,
+      status: 'Active'
+    });
+
+    dbInstance.save();
+    dbInstance.logAudit(id, session?.email || 'super_admin@clubsphere.demo', 'Super Admin', 'Created Club Organization', `Created new organization ${clubPayload.name} with domain ${domain} and admin email ${adminClubEmail}`, 'None', 'Active Organization');
+
+    // Live Sync to Supabase PostgreSQL Database Tables (clubs & users)
+    supabaseSync.syncClub(newClub);
+    supabaseSync.syncUser({
+      id: `usr-${id}-admin`,
+      name: clubPayload.adminName || 'Club President',
+      personalEmail: adminPersonalEmail,
+      clubEmail: adminClubEmail,
+      password: adminInitialPassword,
+      role: 'admin',
+      orgId: id,
+      studentRollNo: '24ADM01',
+      department: clubPayload.department || 'Executive Board',
+      phone: '+91 99999 88888',
+      passwordChanged: false
+    });
+
+    return { ...newClub, generatedAdminEmail: adminClubEmail, generatedAdminPassword: adminInitialPassword };
+  },
+
   deleteClubOrganization: (orgId, session) => {
     if (dbInstance.data.clubs[orgId]) {
       const clubName = dbInstance.data.clubs[orgId].name;
@@ -916,8 +1293,16 @@ export const clubService = {
       if (dbInstance.data.platform?.organizations) {
         dbInstance.data.platform.organizations = dbInstance.data.platform.organizations.filter(o => o.id !== orgId);
       }
+      // Remove all users of this club
+      if (dbInstance.data.users) {
+        dbInstance.data.users = dbInstance.data.users.filter(u => u.orgId !== orgId);
+      }
       dbInstance.save();
-      dbInstance.logAudit('platform', session?.email || 'super_admin@clubsphere.demo', 'Super Admin', 'Deleted Club Organization', `Deleted organization ${clubName} (${orgId})`, 'Active', 'Deleted');
+      dbInstance.logAudit('platform', session?.email || 'super_admin@clubsphere.demo', 'Super Admin', 'Deleted Club Organization', `Deleted organization ${clubName} (${orgId}) and purged associated users`, 'Active', 'Deleted');
+
+      // Live Delete from Supabase tables
+      supabaseSync.deleteClub(orgId);
+
       return true;
     }
     return false;
