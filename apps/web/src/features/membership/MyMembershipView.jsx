@@ -15,13 +15,16 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
 
   const handleRenew = () => {
     try {
-      clubService.renewMember(activeClub.id, currentMember.id, 12, session);
+      clubService.renewMember(activeClub.id, currentMember.id, 12, session, renewPlan);
       setShowRenewModal(false);
       if (onRenewSuccess) onRenewSuccess();
     } catch (e) {
       alert(e.message);
     }
   };
+
+  // Get active membership details dynamically
+  const activeMembershipType = membershipTypes.find(t => t.name === currentMember.type) || membershipTypes[0] || { ticketDiscount: 10, merchDiscount: 5, perks: ['Basic access'] };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -110,7 +113,7 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
                 <div>
                   <h4 style={{ fontSize: '14px', fontWeight: 900 }}>Discounted Event Tickets</h4>
                   <p style={{ fontSize: '12px', color: 'var(--ink-muted)', fontWeight: 700 }}>
-                    Enjoy up to 40% discount on all hackathon and workshop ticket passes.
+                    Enjoy up to {activeMembershipType.ticketDiscount || 15}% discount on all hackathon and workshop ticket passes.
                   </p>
                 </div>
               </div>
@@ -122,7 +125,7 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
                 <div>
                   <h4 style={{ fontSize: '14px', fontWeight: 900 }}>Merchandise Store Discount</h4>
                   <p style={{ fontSize: '12px', color: 'var(--ink-muted)', fontWeight: 700 }}>
-                    Exclusive 20% member coupon auto-applied on hoodies and club gear.
+                    Exclusive {activeMembershipType.merchDiscount || 10}% member coupon auto-applied on hoodies and club gear.
                   </p>
                 </div>
               </div>
@@ -132,9 +135,9 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
                   <Award size={20} color="#3730A3" />
                 </div>
                 <div>
-                  <h4 style={{ fontSize: '14px', fontWeight: 900 }}>Digital Verified Certificates</h4>
+                  <h4 style={{ fontSize: '14px', fontWeight: 900 }}>Exclusive Benefits</h4>
                   <p style={{ fontSize: '12px', color: 'var(--ink-muted)', fontWeight: 700 }}>
-                    Cryptographically tamper-proof certificates with public QR verification.
+                    {activeMembershipType.perks?.join(' • ') || 'Digital Verified Certificates and exclusive club access.'}
                   </p>
                 </div>
               </div>

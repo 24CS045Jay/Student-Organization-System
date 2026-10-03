@@ -6,6 +6,7 @@ import { MessageSquare, Star, Plus, ThumbsUp, Send } from 'lucide-react';
 export const FeedbackView = ({ session, activeClub, onDataChange, onToast }) => {
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [ratingOverall, setRatingOverall] = useState(5);
+  const [commentText, setCommentText] = useState('');
   const club = clubService.getClub(activeClub.id);
   const feedbackList = club.feedback || [];
   const [eventChoice, setEventChoice] = useState(() => club.events?.[0]?.title || 'Club Workshop & Event');

@@ -74,7 +74,24 @@ export default function App() {
   });
 
   const [authInitialMode, setAuthInitialMode] = useState('login');
-  const [activeTab, setActiveTab] = useState('club-dash');
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      const saved = localStorage.getItem('clubsphere_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const homeTabMap = {
+          student: 'my-membership',
+          volunteer: 'tasks-kanban',
+          event_manager: 'events-list',
+          treasurer: 'financial-dash',
+          admin: 'club-dash',
+          super_admin: 'saas-orgs'
+        };
+        return homeTabMap[parsed.role] || 'club-dash';
+      }
+    } catch (e) {}
+    return 'club-dash';
+  });
   const [isAICopilotDrawerOpen, setIsAICopilotDrawerOpen] = useState(false);
   const [isNotifsOpen, setIsNotifsOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -87,6 +104,10 @@ export default function App() {
     supabaseSync.fetchCloudDatabase().then((cloudData) => {
       if (cloudData && cloudData.clubs && cloudData.clubs.length > 0) {
         console.info('[Supabase Live Database] Active cloud records detected.');
+        if (window.dbInstance) {
+          const modified = window.dbInstance.hydrateFromCloud(cloudData);
+          if (modified) setDataVersion(v => v + 1);
+        }
       }
     }).catch(console.warn);
   }, []);
