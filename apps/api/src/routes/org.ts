@@ -8,7 +8,7 @@ orgRouter.post('/', authenticate, (req, res) => {
   res.json({ message: 'Organization created successfully' });
 });
 
-orgRouter.get('/:id', authenticate, resolveOrg, (req, res) => {
+orgRouter.get('/:id', authenticate, resolveOrg, (req: any, res: any) => {
   res.json({
     id: req.org?.id,
     slug: req.org?.slug,

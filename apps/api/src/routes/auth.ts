@@ -8,7 +8,7 @@ authRouter.post('/register', (req, res) => {
   res.json({ message: 'User registered successfully' });
 });
 
-authRouter.get('/me', authenticate, (req, res) => {
+authRouter.get('/me', authenticate, (req: any, res: any) => {
   // Returns profile and list of orgs the user is a member of
   res.json({
     profile: req.user,
