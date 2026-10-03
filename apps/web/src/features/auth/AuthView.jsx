@@ -12,6 +12,7 @@ import {
   Globe
 } from 'lucide-react';
 import { dbInstance } from '../../mock/db';
+import { clubService } from '../../services/clubService';
 import { authService } from '../../services/authService';
 
 export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login' }) => {
@@ -35,40 +36,47 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
   // Dynamic Helper: Detect club based on email address across all registered clubs
   const detectClubFromEmail = (emailStr) => {
     const lower = (emailStr || '').toLowerCase();
-
-    // Dynamic search across all registered clubs in dbInstance
     const registeredClubs = Object.values(dbInstance.data.clubs || {});
+    if (registeredClubs.length === 0) return null;
+
+    // 1. Match by configured email domain (e.g. @robotics.campus.edu)
     for (const club of registeredClubs) {
-      if (club.emailDomain && lower.includes(club.emailDomain.replace('@', '').toLowerCase())) {
-        return { id: club.id, name: club.name, color: club.color || '#FFE853' };
+      if (club.emailDomain) {
+        const domainClean = club.emailDomain.replace('@', '').toLowerCase();
+        if (domainClean && lower.includes(domainClean)) {
+          return { id: club.id, name: club.name, color: club.color || '#FFE853' };
+        }
       }
-      if (lower.includes(club.id) || lower.includes(club.short?.toLowerCase())) {
+    }
+
+    // 2. Match by club ID, short code, or prefix
+    for (const club of registeredClubs) {
+      if (
+        (club.id && lower.includes(club.id.toLowerCase())) ||
+        (club.short && lower.includes(club.short.toLowerCase())) ||
+        (club.prefix && lower.includes(club.prefix.toLowerCase()))
+      ) {
         return { id: club.id, name: club.name, color: club.color || '#FFE853' };
       }
     }
 
-    // Keyword heuristics
-    if (lower.includes('cult') || lower.includes('arts') || lower.includes('music')) {
-      return { id: 'cult', name: 'Cultural Arts Society', color: '#FF70A6' };
-    }
-    if (lower.includes('sport') || lower.includes('athletic') || lower.includes('futsal')) {
-      return { id: 'sport', name: 'Sports & Athletics Council', color: '#70D6FF' };
+    // 3. If there is only 1 registered club on campus, map to that club
+    if (registeredClubs.length === 1 && lower.includes('@')) {
+      const single = registeredClubs[0];
+      return { id: single.id, name: single.name, color: single.color || '#FFE853' };
     }
 
-    // Default to Tech Innovators Club
-    return { id: 'tech', name: 'Tech Innovators Club', color: '#FFE853' };
+    return null;
   };
 
   const detectedClub = detectClubFromEmail(email);
 
-  // Quick Demo Personas (Club Personas Only)
-  const demoPersonas = [
-    { role: 'admin', orgId: 'tech', email: 'admin@tech.campus.edu', name: 'Alex Patel (Admin)', label: 'Tech Admin', color: '#FFE853' },
-    { role: 'treasurer', orgId: 'tech', email: 'treasurer@tech.campus.edu', name: 'Rohan Shah (Treasurer)', label: 'Tech Treasurer', color: '#6BCB77' },
-    { role: 'student', orgId: 'tech', email: 'aarav@tech.campus.edu', name: 'Aarav Shah (Member)', label: 'Tech Member', color: '#70D6FF' },
-    { role: 'event_manager', orgId: 'cult', email: 'manager@cultural.campus.edu', name: 'Sara Khan (Manager)', label: 'Cultural Event Mgr', color: '#FF70A6' },
-    { role: 'volunteer', orgId: 'sport', email: 'volunteer@sports.campus.edu', name: 'Jay Barot (Volunteer)', label: 'Sports Volunteer', color: '#FFD93D' }
-  ];
+  // Quick Demo Personas dynamically derived from active registered clubs
+  const registeredClubsList = Object.values(dbInstance.data.clubs || {});
+  const demoPersonas = registeredClubsList.flatMap(c => [
+    { role: 'admin', orgId: c.id, email: `admin${c.emailDomain || `@${c.id}.campus.edu`}`, name: `${c.short || c.name} Admin`, label: `${c.short || c.name} Admin`, color: c.color || '#FFE853' },
+    { role: 'student', orgId: c.id, email: `student${c.emailDomain || `@${c.id}.campus.edu`}`, name: `${c.short || c.name} Student`, label: `${c.short || c.name} Student`, color: '#70D6FF' }
+  ]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -79,10 +87,35 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
       return;
     }
 
-    setIsSubmitting(true);
+    if (registeredClubsList.length === 0) {
+      setError('⚠️ No student clubs have been created yet on the platform. Please access the Super Admin Portal to onboard your first club organization.');
+      return;
+    }
+
     const club = detectClubFromEmail(email);
-    const assignedRole = club.isSuperAdmin ? 'super_admin' : role;
+    if (!club) {
+      setError(`❌ No club found matching the email domain "${email.split('@')[1] || email}". Please verify your email or onboard this club in the Super Admin Portal.`);
+      return;
+    }
+
+    setIsSubmitting(true);
+    const assignedRole = role;
     const userName = name.trim() || email.split('@')[0].replace('.', ' ').toUpperCase();
+
+    // If registering a new user, also record in club.members table if not already present
+    if (mode === 'register') {
+      try {
+        clubService.registerMember(club.id, {
+          name: userName,
+          email: email,
+          dept: 'Computer Engineering',
+          type: 'Standard Member',
+          paid: 1
+        }, { email, role: assignedRole });
+      } catch (err) {
+        console.warn('Auto member registration notice:', err);
+      }
+    }
 
     try {
       const sessionData = await authService.login({

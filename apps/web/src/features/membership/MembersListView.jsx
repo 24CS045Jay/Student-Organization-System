@@ -443,7 +443,7 @@ export const MembersListView = ({ session, activeClub, onDataChange, onToast }) 
             <input
               type="email"
               required
-              placeholder="neil.p@charusat.edu.in"
+              placeholder="neil.p@campus.edu"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className="neo-input"

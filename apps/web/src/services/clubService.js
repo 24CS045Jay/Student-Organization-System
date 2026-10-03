@@ -232,7 +232,7 @@ export const clubService = {
       eventTitle: event.title,
       memberId: attendeeInfo.memberId || null,
       attendeeName: attendeeInfo.name || session?.name || 'Guest Student',
-      email: attendeeInfo.email || session?.email || 'student@charusat.edu.in',
+      email: attendeeInfo.email || session?.email || 'student@campus.edu',
       isMember,
       pricePaid: price,
       status: 'Valid',
@@ -394,7 +394,7 @@ export const clubService = {
       id: ordId,
       memberId: orderPayload.memberId || null,
       customerName: orderPayload.customerName || session?.name || 'Student Member',
-      email: orderPayload.email || session?.email || 'student@charusat.edu.in',
+      email: orderPayload.email || session?.email || 'student@campus.edu',
       items: [{ productId: product.id, name: product.name, size: orderPayload.size, qty: reqQty, price: orderPayload.unitPrice }],
       totalAmt: orderPayload.totalAmt,
       status: 'Paid',
@@ -600,7 +600,7 @@ export const clubService = {
     if (newAnn.channels.includes('Email')) {
       const recipientEmails = club.members.map(m => m.email).filter(Boolean);
       sendEmail({
-        to: recipientEmails.length > 0 ? recipientEmails[0] : 'members@charusat.edu.in',
+        to: recipientEmails.length > 0 ? recipientEmails[0] : 'members@campus.edu',
         subject: `📢 [${club.name}] ${newAnn.title}`,
         html: `
           <div style="font-family: sans-serif; padding: 20px; background-color: #FDF8F0;">
@@ -751,7 +751,7 @@ export const clubService = {
       return `⚠️ **Tenant Isolation Guard (NFR-03)**: I am only authorized to access data for **${club.name}**. I cannot disclose financial records or member information for other campus organizations.`;
     }
     if (q.includes('sports') && orgId !== 'sport') {
-      return `⚠️ **Tenant Isolation Guard (NFR-03)**: I do not have access to CHARUSAT Sports Club's private ledger. Currently loaded session is for **${club.name}**.`;
+      return `⚠️ **Tenant Isolation Guard**: I do not have access to other clubs' private ledgers. Currently loaded session is for **${club.name}**.`;
     }
     if (q.includes('tech') && orgId !== 'tech') {
       return `⚠️ **Tenant Isolation Guard (NFR-03)**: Access restricted. You are querying from **${club.name}**.`;
@@ -793,37 +793,54 @@ export const clubService = {
     const id = clubPayload.id || clubPayload.short.toLowerCase().replace(/[^a-z0-9]/g, '');
     const prefix = (clubPayload.prefix || clubPayload.short.substring(0, 3)).toUpperCase();
     const domain = clubPayload.emailDomain?.startsWith('@') ? clubPayload.emailDomain.toLowerCase() : `@${clubPayload.emailDomain.toLowerCase()}`;
+    const initialGrant = Number(clubPayload.initialGrant) || 0;
+    const membershipFee = Number(clubPayload.membershipFee) || 500;
     
-    // Create new club template in dbInstance
+    // Create new clean club template in dbInstance with complete table schemas
     const newClub = {
       id,
       name: clubPayload.name,
-      short: clubPayload.short,
+      short: clubPayload.short || clubPayload.name.split(' ')[0],
       prefix,
       category: clubPayload.category || 'General Club',
+      department: clubPayload.department || 'Student Activities Directorate',
+      facultyAdvisor: clubPayload.facultyAdvisor || 'Faculty Coordinator',
       color: clubPayload.color || '#FFE853',
+      accentColor: '#FFD24C',
+      banner: `⚡ Welcome to ${clubPayload.name}`,
+      tagline: clubPayload.tagline || `Official ${clubPayload.name} Student Organization`,
+      description: clubPayload.description || `Active student organization on campus.`,
+      tags: clubPayload.tags || ['Campus', 'Club'],
       emailDomain: domain,
+      contactEmail: clubPayload.contactEmail || `info${domain}`,
+      stats: {
+        membersCount: clubPayload.adminEmail ? 1 : 0,
+        activeEvents: 0,
+        totalRevenue: initialGrant,
+        volunteersCount: 0
+      },
       membershipTypes: [
-        { name: 'Standard Member', annualFee: 500, benefits: ['Event Discounts', 'Digital Member Pass'] },
-        { name: 'Core Executive', annualFee: 1000, benefits: ['VIP Badge', 'All Workshop Passes'] }
+        { id: `mt-${id}-1`, name: 'Standard Member', price: membershipFee, durationMonths: 12, ticketDiscount: 15, merchDiscount: 10, perks: ['Discounted entry to workshops', 'Access to club hub', 'Digital Certificate'] },
+        { id: `mt-${id}-2`, name: 'Premium Pro Clubber', price: membershipFee * 2, durationMonths: 12, ticketDiscount: 35, merchDiscount: 20, perks: ['Priority workshop seating', 'Exclusive Merchandise pass', 'Mentorship access'] }
       ],
-      members: [
+      members: clubPayload.adminEmail ? [
         {
           id: `${prefix}-001`,
-          name: clubPayload.adminName || 'Club Admin',
+          name: clubPayload.adminName || 'Club President / Admin',
           email: clubPayload.adminEmail || `admin${domain}`,
           studentId: '24ADM01',
-          dept: 'Student Affairs',
-          type: 'Core Executive',
-          exp: '2027-12-31',
+          dept: clubPayload.department || 'Executive Board',
+          type: 'Premium Pro Clubber',
+          exp: '2028-12-31',
           startDate: new Date().toISOString().split('T')[0],
           paid: 1,
           status: 'Active',
           photo: '🧑‍💼',
           phone: '+91 99999 88888',
-          history: [{ action: 'Organization Founded', date: new Date().toISOString().split('T')[0] }]
+          attendanceCount: 0,
+          history: [{ action: 'Organization Founded & Admin Registered', date: new Date().toISOString().split('T')[0], amt: initialGrant }]
         }
-      ],
+      ] : [],
       events: [],
       tickets: [],
       merchandise: [],
@@ -833,25 +850,47 @@ export const clubService = {
       volunteers: [],
       reimbursements: [],
       finance: {
-        totalIncome: 10000,
-        totalExpenses: 2000,
-        netBalance: 8000,
-        incomeSources: [{ source: 'Initial Seed Grant', amount: 10000, count: 1 }],
-        expensesList: [{ id: `EXP-${prefix}-01`, title: 'Club Domain Setup & Branding', category: 'Operations', amount: 2000, date: new Date().toISOString().split('T')[0], approvedBy: 'Super Admin', receiptUrl: '' }],
-        budgetAllocated: 100000,
-        budgetSpent: 2000
+        totalIncome: initialGrant,
+        totalExpenses: 0,
+        netBalance: initialGrant,
+        incomeSources: initialGrant > 0 ? [{ source: 'Initial University Seed Grant', amount: initialGrant, count: 1 }] : [],
+        expensesList: [],
+        budgetAllocated: initialGrant * 2 || 50000,
+        budgetSpent: 0
       },
       sponsors: [],
       donations: [],
       certificates: [],
       feedback: [],
-      announcements: [{ id: `ann-${id}-1`, title: `Welcome to ${clubPayload.name}!`, date: new Date().toISOString().split('T')[0], audience: 'All Members', channels: ['Website', 'Email'], status: 'Published', author: 'Super Admin', content: `The ${clubPayload.name} is officially onboarded to ClubSphere.`, reach: 1 }],
+      announcements: [
+        {
+          id: `ann-${id}-1`,
+          title: `Welcome to ${clubPayload.name}!`,
+          date: new Date().toISOString().split('T')[0],
+          audience: 'All Members',
+          channels: ['Website', 'Email'],
+          status: 'Published',
+          author: 'Super Admin',
+          content: `The ${clubPayload.name} is officially onboarded to ClubSphere.`,
+          reach: 1
+        }
+      ],
       renewalReminders: []
     };
 
+    if (!dbInstance.data.clubs) {
+      dbInstance.data.clubs = {};
+    }
     dbInstance.data.clubs[id] = newClub;
 
     // Add to platform organizations list
+    if (!dbInstance.data.platform) {
+      dbInstance.data.platform = { organizations: [] };
+    }
+    if (!dbInstance.data.platform.organizations) {
+      dbInstance.data.platform.organizations = [];
+    }
+
     dbInstance.data.platform.organizations.push({
       id,
       name: clubPayload.name,
@@ -859,7 +898,7 @@ export const clubService = {
       college: 'Student Activities Directorate',
       department: clubPayload.category,
       tier: 'Pro Tier',
-      membersCount: 1,
+      membersCount: newClub.members.length,
       emailDomain: domain,
       status: 'Active'
     });

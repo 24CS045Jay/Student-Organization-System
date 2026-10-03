@@ -33,14 +33,14 @@ export const BrowseEventsView = ({ session, activeClub, onToast, onNavigate }) =
         title: selectedEvent.title,
         description: `Pass for ${selectedEvent.category} (${isMemberDiscount ? 'Member Discount' : 'Standard'})`,
         prefillName: session.name || 'Student Member',
-        prefillEmail: session.email || 'student@charusat.edu.in',
+        prefillEmail: session.email || 'student@campus.edu',
         onSuccess: (paymentResult) => {
           const ticket = clubService.buyTicket(
             activeClub.id,
             selectedEvent.id,
             {
               name: session.name || 'Student Member',
-              email: session.email || 'student@charusat.edu.in',
+              email: session.email || 'student@campus.edu',
               isMember: isMemberDiscount,
               memberId: isMemberDiscount ? `${activeClub.prefix}-001` : null
             },
