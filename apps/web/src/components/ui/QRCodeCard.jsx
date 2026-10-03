@@ -10,12 +10,17 @@ export const NeoQRCode = ({ code = 'TC-001', size = 150, color = '#121212' }) =>
   useEffect(() => {
     let isCurrent = true;
     const clean = String(code || 'TC-001').trim();
-    QRCodeLib.toDataURL(clean, {
-      width: size * 2,
-      margin: 1,
+    // Universal verification payload that works on both smartphone camera and in-app scanner
+    const payload = (clean.startsWith('http://') || clean.startsWith('https://'))
+      ? clean
+      : `https://clubsphere-campus-os.vercel.app/?verify=${encodeURIComponent(clean)}`;
+
+    QRCodeLib.toDataURL(payload, {
+      width: Math.max(size * 2, 320),
+      margin: 2,
       errorCorrectionLevel: 'M',
       color: {
-        dark: color || '#121212',
+        dark: '#000000',
         light: '#FFFFFF'
       }
     }).then(url => {

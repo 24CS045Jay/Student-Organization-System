@@ -119,16 +119,40 @@ export const clubService = {
   },
 
   verifyMember: (currentOrgId, queryId) => {
-    if (!queryId) return { status: 'INVALID', message: 'No ID provided' };
+    let clean = (queryId || '').trim();
+    if (!clean) return { status: 'INVALID', message: 'No ID provided' };
+
+    // Sanitize URL query param if URL is passed
+    if (clean.includes('?') && (clean.startsWith('http://') || clean.startsWith('https://'))) {
+      try {
+        const u = new URL(clean);
+        const p = u.searchParams.get('verify') || u.searchParams.get('ticket') || u.searchParams.get('code') || u.searchParams.get('id');
+        if (p) clean = p.trim();
+      } catch (e) {
+        const m = clean.match(/[?&](?:verify|ticket|code|id)=([^&#]+)/i);
+        if (m && m[1]) clean = decodeURIComponent(m[1]).trim();
+      }
+    }
+
+    clean = clean
+      .replace(/^CLUBSPHERE:(PASS|TICKET|MEMBER|CERT):/i, '')
+      .replace(/^CS-APP:\/\/[^/]+\//i, '')
+      .replace(/["']/g, '')
+      .trim();
+
+    if (clean.startsWith('CSM1.') || clean.startsWith('CSQ1.')) {
+      const parts = clean.split('.');
+      if (parts[1]) clean = parts[1].trim();
+    }
     
     // Check if ID belongs to another club (e.g. TC- vs CC- vs SC-)
     for (const [otherOrgId, otherClub] of Object.entries(dbInstance.data.clubs)) {
       if (otherOrgId !== currentOrgId) {
-        const otherMember = otherClub.members.find(m => m.id.toLowerCase() === queryId.toLowerCase() || m.email.toLowerCase() === queryId.toLowerCase());
+        const otherMember = (otherClub.members || []).find(m => m.id.toLowerCase() === clean.toLowerCase() || m.email.toLowerCase() === clean.toLowerCase());
         if (otherMember) {
           return {
             status: 'WRONG_CLUB',
-            message: `Cross-tenant ID: Member belongs to ${otherClub.name}, NOT ${dbInstance.data.clubs[currentOrgId].name}!`,
+            message: `Cross-tenant ID: Member belongs to ${otherClub.name}, NOT ${dbInstance.data.clubs[currentOrgId]?.name || 'Current Club'}!`,
             member: otherMember,
             clubName: otherClub.name
           };
@@ -137,10 +161,10 @@ export const clubService = {
     }
 
     const club = dbInstance.getClub(currentOrgId);
-    const member = club.members.find(m => m.id.toLowerCase() === queryId.toLowerCase() || m.email.toLowerCase() === queryId.toLowerCase() || m.studentId?.toLowerCase() === queryId.toLowerCase());
+    const member = (club.members || []).find(m => m.id.toLowerCase() === clean.toLowerCase() || m.email.toLowerCase() === clean.toLowerCase() || m.studentId?.toLowerCase() === clean.toLowerCase());
 
     if (!member) {
-      return { status: 'INVALID', message: `ID "${queryId}" not found in current club registry.` };
+      return { status: 'INVALID', message: `ID "${clean}" not found in current club registry.` };
     }
 
     const isExp = new Date(member.exp) < new Date();
@@ -340,6 +364,23 @@ export const clubService = {
     // Strip leading / trailing quotes or whitespace
     cleanId = cleanId.replace(/["']/g, '').trim();
 
+    // If payload is a URL (e.g. https://clubsphere-campus-os.vercel.app/?verify=TKT-TC-9801)
+    if (cleanId.includes('?') && (cleanId.startsWith('http://') || cleanId.startsWith('https://'))) {
+      try {
+        const u = new URL(cleanId);
+        const p = u.searchParams.get('verify') || u.searchParams.get('ticket') || u.searchParams.get('code') || u.searchParams.get('id');
+        if (p) cleanId = p.trim();
+      } catch (e) {
+        const m = cleanId.match(/[?&](?:verify|ticket|code|id)=([^&#]+)/i);
+        if (m && m[1]) cleanId = decodeURIComponent(m[1]).trim();
+      }
+    }
+
+    cleanId = cleanId
+      .replace(/^CLUBSPHERE:(PASS|TICKET|MEMBER|CERT):/i, '')
+      .replace(/^CS-APP:\/\/[^/]+\//i, '')
+      .trim();
+
     // Check if it's a signed token format (e.g. CSQ1.TKT-TC-9801... or CSM1.TC.TC-001...)
     if (cleanId.startsWith('CSQ1.') || cleanId.startsWith('CSM1.')) {
       const parts = cleanId.split('.');
@@ -531,6 +572,91 @@ export const clubService = {
       message: `⚡ QUICK ADMIT CONFIRMED! Member ${member.name} admitted successfully.`
     };
   },
+
+  lookupPublicPass: (queryId) => {
+    if (!queryId) return null;
+    let clean = String(queryId).trim().replace(/["']/g, '');
+    if (clean.includes('?') && (clean.startsWith('http://') || clean.startsWith('https://'))) {
+      try {
+        const u = new URL(clean);
+        clean = u.searchParams.get('verify') || u.searchParams.get('ticket') || u.searchParams.get('code') || u.searchParams.get('id') || clean;
+      } catch (e) {}
+    }
+    clean = clean
+      .replace(/^CLUBSPHERE:(PASS|TICKET|MEMBER|CERT):/i, '')
+      .replace(/^CS-APP:\/\/[^/]+\//i, '')
+      .trim();
+
+    if (clean.startsWith('CSQ1.') || clean.startsWith('CSM1.')) {
+      const parts = clean.split('.');
+      if (parts[1]) clean = parts[1].trim();
+    }
+    const upper = clean.toUpperCase();
+
+    const clubs = dbInstance.data?.clubs || {};
+    for (const [orgId, club] of Object.entries(clubs)) {
+      // 1. Ticket check
+      const ticket = (club.tickets || []).find(
+        t => t.id?.toUpperCase() === upper || (t.qrToken && t.qrToken.toUpperCase() === upper)
+      );
+      if (ticket) {
+        return {
+          type: 'TICKET',
+          club,
+          ticket,
+          title: ticket.eventTitle,
+          name: ticket.attendeeName,
+          status: ticket.status,
+          code: ticket.id,
+          seat: ticket.seat,
+          email: ticket.email
+        };
+      }
+
+      // 2. Member check
+      const member = (club.members || []).find(
+        m => m.id?.toUpperCase() === upper || m.studentId?.toUpperCase() === upper || m.email?.toLowerCase() === clean.toLowerCase()
+      );
+      if (member) {
+        return {
+          type: 'MEMBER',
+          club,
+          member,
+          title: `${club.name} Official Member Card`,
+          name: member.name,
+          status: member.status,
+          code: member.id,
+          role: member.role,
+          studentId: member.studentId
+        };
+      }
+
+      // 3. Certificate check
+      const cert = (club.certificates || []).find(
+        c => c.id?.toUpperCase() === upper || c.qrCode?.toUpperCase() === upper
+      );
+      if (cert) {
+        return {
+          type: 'CERT',
+          club,
+          cert,
+          title: cert.title,
+          name: cert.recipientName,
+          status: 'VERIFIED',
+          code: cert.qrCode || cert.id,
+          issueDate: cert.issueDate
+        };
+      }
+    }
+
+    return {
+      type: 'UNKNOWN',
+      code: clean,
+      status: 'NOT_FOUND',
+      message: `No active pass or member found for ID "${clean}".`
+    };
+  },
+
 
   // --- Merchandise & Inventory (FR-09 to FR-11) ---
   getMerchandise: (orgId) => {
