@@ -11,6 +11,7 @@ import { LandingPageView } from './features/landing/LandingPageView';
 import { AuthView } from './features/auth/AuthView';
 import { SuperAdminClubCreationView } from './features/platform/SuperAdminClubCreationView';
 import { PasswordUpdateModal } from './components/layout/PasswordUpdateModal';
+import { QuickLoginModal } from './components/layout/QuickLoginModal';
 import { supabaseSync } from './services/supabaseService';
 
 // Features
@@ -107,6 +108,7 @@ export default function App() {
   const [isAICopilotDrawerOpen, setIsAICopilotDrawerOpen] = useState(false);
   const [isNotifsOpen, setIsNotifsOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isQuickLoginOpen, setIsQuickLoginOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [dataVersion, setDataVersion] = useState(0);
   const [notifsList, setNotifsList] = useState([]);
@@ -249,17 +251,26 @@ export default function App() {
     }
 
     return (
-      <LandingPageView
-        onLoginClick={() => {
-          setAuthInitialMode('login');
-          setViewState('auth');
-        }}
-        onRegisterClick={() => {
-          setAuthInitialMode('register');
-          setViewState('auth');
-        }}
-        onSuperAdminClick={() => setViewState('super-admin-club-creation')}
-      />
+      <>
+        <LandingPageView
+          onLoginClick={() => {
+            setAuthInitialMode('login');
+            setViewState('auth');
+          }}
+          onRegisterClick={() => {
+            setAuthInitialMode('register');
+            setViewState('auth');
+          }}
+          onSuperAdminClick={() => setViewState('super-admin-club-creation')}
+          onQuickRoleClick={() => setIsQuickLoginOpen(true)}
+        />
+        <QuickLoginModal
+          isOpen={isQuickLoginOpen}
+          onClose={() => setIsQuickLoginOpen(false)}
+          currentSession={session || {}}
+          onSelectRoleAndClub={handleRoleAndClubSelect}
+        />
+      </>
     );
   }
 
@@ -390,6 +401,7 @@ export default function App() {
         onToggleAICopilot={() => setIsAICopilotDrawerOpen(true)}
         unreadNotifsCount={notifsList.filter((n) => n.unread).length}
         onOpenNotifs={() => setIsNotifsOpen(true)}
+        onOpenQuickLogin={() => setIsQuickLoginOpen(true)}
         onLogout={handleLogout}
       />
 
@@ -451,6 +463,14 @@ export default function App() {
         onClose={() => setIsPasswordModalOpen(false)}
         session={session}
         onToast={handleToast}
+      />
+
+      {/* Quick Role & Persona Switcher */}
+      <QuickLoginModal
+        isOpen={isQuickLoginOpen}
+        onClose={() => setIsQuickLoginOpen(false)}
+        currentSession={session || {}}
+        onSelectRoleAndClub={handleRoleAndClubSelect}
       />
 
       {/* Floating Toast Alert */}
