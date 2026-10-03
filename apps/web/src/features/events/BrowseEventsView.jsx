@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { Card, Button, Badge, Modal, ProgressBar } from '../../components/ui/index';
 import { DigitalEventTicket } from '../../components/ui/QRCodeCard';
 import { clubService } from '../../services/clubService';
-import { Calendar, MapPin, Clock, Users, Tag, CheckCircle2, Ticket, Sparkles, CreditCard, ArrowRight } from 'lucide-react';
+import { openRazorpayCheckout } from '../../services/paymentService';
 
 export const BrowseEventsView = ({ session, activeClub, onToast, onNavigate }) => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('UPI');
+  const [paymentMethod, setPaymentMethod] = useState('Razorpay');
   const [isMemberDiscount, setIsMemberDiscount] = useState(session.role === 'student' || session.role === 'admin');
   const [purchasedTicket, setPurchasedTicket] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const events = clubService.getEvents(activeClub.id);
   const publishedEvents = events.filter(e => e.status === 'Published' || session.role !== 'student');
@@ -20,26 +21,44 @@ export const BrowseEventsView = ({ session, activeClub, onToast, onNavigate }) =
     setPurchasedTicket(null);
   };
 
-  const handleConfirmPurchase = () => {
+  const handleConfirmPurchase = async () => {
     if (!selectedEvent) return;
 
-    try {
-      const ticket = clubService.buyTicket(
-        activeClub.id,
-        selectedEvent.id,
-        {
-          name: session.name || 'Student Member',
-          email: session.email || 'student@charusat.edu.in',
-          isMember: isMemberDiscount,
-          memberId: isMemberDiscount ? `${activeClub.prefix}-001` : null
-        },
-        session
-      );
+    const price = isMemberDiscount ? selectedEvent.memberPrice : selectedEvent.nonMemberPrice;
+    setIsProcessing(true);
 
-      setPurchasedTicket(ticket);
-      setIsBuyModalOpen(false);
-      if (onToast) onToast(`🎟️ Ticket confirmed! ID: ${ticket.id}`);
+    try {
+      await openRazorpayCheckout({
+        amount: price,
+        title: selectedEvent.title,
+        description: `Pass for ${selectedEvent.category} (${isMemberDiscount ? 'Member Discount' : 'Standard'})`,
+        prefillName: session.name || 'Student Member',
+        prefillEmail: session.email || 'student@charusat.edu.in',
+        onSuccess: (paymentResult) => {
+          const ticket = clubService.buyTicket(
+            activeClub.id,
+            selectedEvent.id,
+            {
+              name: session.name || 'Student Member',
+              email: session.email || 'student@charusat.edu.in',
+              isMember: isMemberDiscount,
+              memberId: isMemberDiscount ? `${activeClub.prefix}-001` : null
+            },
+            session,
+            paymentResult
+          );
+
+          setPurchasedTicket(ticket);
+          setIsBuyModalOpen(false);
+          setIsProcessing(false);
+          if (onToast) onToast(`🎉 Ticket confirmed! Ref: ${paymentResult.paymentId}`);
+        },
+        onDismiss: () => {
+          setIsProcessing(false);
+        }
+      });
     } catch (err) {
+      setIsProcessing(false);
       alert(err.message);
     }
   };

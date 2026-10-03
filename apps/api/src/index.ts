@@ -10,6 +10,12 @@ import { membershipRouter } from './routes/membership';
 import { reportsRouter } from './routes/reports';
 import { analyticsRouter } from './routes/analytics';
 
+import { eventsRouter } from './routes/events';
+import { differentiatorsRouter } from './routes/differentiators';
+import { platformRouter } from './routes/platform';
+import { aiRouter } from './routes/ai';
+import { healthRouter } from './routes/health';
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -20,19 +26,40 @@ app.use(express.json());
 // Routes
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/orgs', orgRouter);
+app.use('/api/v1', eventsRouter);
 app.use('/api/v1', merchRouter);
 app.use('/api/v1', fundraisingRouter);
 app.use('/api/v1', financeRouter);
 app.use('/api/v1', membershipRouter);
 app.use('/api/v1/reports', reportsRouter);
 app.use('/api/v1/analytics', analyticsRouter);
+app.use('/api/v1', differentiatorsRouter);
+app.use('/api/v1/platform', platformRouter);
+app.use('/api/v1/ai', aiRouter);
+app.use('/api/v1', healthRouter);
 
 app.get('/', (req: any, res: any) => {
   res.json({
-    name: 'ClubSphere API',
-    version: '1.0.0',
-    phases: ['Phase 0: Foundation', 'Phase 1: Auth & Tenancy', 'Phase 2: Membership', 'Phase 6: Merch', 'Phase 7: Fundraising', 'Phase 8: Finance'],
-    status: 'online'
+    name: 'ClubSphere API — Master Campus OS',
+    version: '2.0.0',
+    executedPhases: [
+      'Phase 0: Monorepo Foundation',
+      'Phase 1: Auth & Multi-Tenancy (RLS)',
+      'Phase 2: Membership Management & Dues',
+      'Phase 3: Events & Live Razorpay Gateway',
+      'Phase 4: Digital QR Scanner & Anti-Passback',
+      'Phase 5: Resend Communication & In-App Alerts',
+      'Phase 6: Merchandise Inventory & POS',
+      'Phase 7: Fundraising, Volunteers & Kanban',
+      'Phase 8: Treasury, Append-Only Ledger & Reimbursements',
+      'Phase 9: Reports & Cross-Tenant Analytics',
+      'Phase 10: Certificates, Feedback, Sponsors & Donations',
+      'Phase 11: SaaS Hierarchy, Tier Limits & Feature Flags',
+      'Phase 12: AI Copilot, Event Planner & Insights',
+      'Phase 13: System Hardening, Audit Logs & Health'
+    ],
+    status: 'online',
+    timestamp: new Date().toISOString()
   });
 });
 

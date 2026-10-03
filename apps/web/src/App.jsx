@@ -2,9 +2,14 @@ import React, { useState, useEffect } from 'react';
 import './styles/neo-brutalism.css';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar } from './components/layout/Sidebar';
-import { QuickLoginModal } from './components/layout/QuickLoginModal';
 import { TenantForbidden403 } from './components/layout/TenantForbidden403';
 import { AICopilotView } from './features/ai/AICopilotView';
+import { notificationService } from './services/notificationService';
+
+// Landing, Auth & Super Admin Creation Flows
+import { LandingPageView } from './features/landing/LandingPageView';
+import { AuthView } from './features/auth/AuthView';
+import { SuperAdminClubCreationView } from './features/platform/SuperAdminClubCreationView';
 
 // Features
 import { MyMembershipView } from './features/membership/MyMembershipView';
@@ -41,45 +46,64 @@ import { FeedbackView } from './features/feedback/FeedbackView';
 import { PlatformSuperAdminView } from './features/platform/PlatformSuperAdminView';
 import { AuditLogView } from './features/audit/AuditLogView';
 import { SettingsView } from './features/settings/SettingsView';
-import { DesignSystemShowcaseView } from './features/design_system/DesignSystemShowcaseView';
 import { ClubDashboardView } from './features/dashboard/ClubDashboardView';
 
 import { clubService } from './services/clubService';
 import { dbInstance } from './mock/db';
-import { Drawer, Badge, Button } from './components/ui/index';
-import { Bell, CheckCircle2, Sparkles, X } from 'lucide-react';
+import { Drawer } from './components/ui/index';
 
 export default function App() {
-  // Session State (Stored in localStorage or initial admin demo)
+  // Session State (Stored in localStorage or null for landing page)
   const [session, setSession] = useState(() => {
     try {
       const saved = localStorage.getItem('clubsphere_session');
       if (saved) return JSON.parse(saved);
     } catch (e) {}
-    return {
-      role: 'admin',
-      orgId: 'tech',
-      email: 'admin@tech.demo',
-      name: 'Club Admin (TECH)'
-    };
+    return null;
   });
 
+  // Current view state: 'landing' | 'auth' | 'super-admin-club-creation' | 'app'
+  const [viewState, setViewState] = useState(() => {
+    try {
+      const saved = localStorage.getItem('clubsphere_session');
+      if (saved) return 'app';
+    } catch (e) {}
+    return 'landing';
+  });
+
+  const [authInitialMode, setAuthInitialMode] = useState('login');
   const [activeTab, setActiveTab] = useState('club-dash');
-  const [isQuickLoginOpen, setIsQuickLoginOpen] = useState(false);
   const [isAICopilotDrawerOpen, setIsAICopilotDrawerOpen] = useState(false);
   const [isNotifsOpen, setIsNotifsOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [dataVersion, setDataVersion] = useState(0);
+  const [notifsList, setNotifsList] = useState([]);
+
+  // Subscribe to notifications when logged in
+  useEffect(() => {
+    if (!session) return;
+    setNotifsList(notificationService.getNotifications(session.orgId));
+    const unsubscribe = notificationService.subscribe((updated) => {
+      setNotifsList(updated.filter((n) => !n.orgId || n.orgId === session.orgId));
+    });
+    return () => unsubscribe();
+  }, [session?.orgId]);
 
   // Active Club Data
-  const activeClub = session.orgId === 'platform' 
-    ? { id: 'tech', name: 'Platform Root', short: 'Platform', color: '#FFD24C' } 
-    : clubService.getClub(session.orgId);
+  const activeClub = (session && session.orgId === 'platform')
+    ? { id: 'tech', name: 'Platform Root', short: 'Platform', color: '#FFD24C' }
+    : session
+    ? clubService.getClub(session.orgId)
+    : { id: 'tech', name: 'Tech Innovators Club', short: 'Tech', color: '#FFE853' };
 
   // Save session changes
   useEffect(() => {
     try {
-      localStorage.setItem('clubsphere_session', JSON.stringify(session));
+      if (session) {
+        localStorage.setItem('clubsphere_session', JSON.stringify(session));
+      } else {
+        localStorage.removeItem('clubsphere_session');
+      }
     } catch (e) {}
   }, [session]);
 
@@ -91,46 +115,109 @@ export default function App() {
   };
 
   const handleDataChange = () => {
-    setDataVersion(v => v + 1);
-  };
-
-  const handleClubChange = (newOrgId) => {
-    setSession(prev => ({
-      ...prev,
-      orgId: newOrgId,
-      email: prev.role === 'super_admin' ? prev.email : `${prev.role}@${newOrgId}.demo`
-    }));
-    handleToast(`🏢 Switched context to ${dbInstance.data.clubs[newOrgId]?.name}`);
+    setDataVersion((v) => v + 1);
   };
 
   const handleRoleAndClubSelect = ({ role, orgId, email, name, homeTab }) => {
-    setSession({ role, orgId, email, name });
-    setActiveTab(homeTab);
-    handleToast(`⚡ Logged in as ${name} (${role.toUpperCase()})`);
+    const newSession = { role, orgId, email, name };
+    setSession(newSession);
+    const homeTabMap = {
+      student: 'my-membership',
+      volunteer: 'tasks-kanban',
+      event_manager: 'events-list',
+      treasurer: 'financial-dash',
+      admin: 'club-dash',
+      super_admin: 'saas-orgs'
+    };
+    setActiveTab(homeTab || homeTabMap[role] || 'club-dash');
+    setViewState('app');
+    handleToast(`⚡ Signed in as ${name} (${role.toUpperCase()})`);
+  };
+
+  const handleAuthSuccess = (newSession) => {
+    setSession(newSession);
+    const homeTabMap = {
+      student: 'my-membership',
+      volunteer: 'tasks-kanban',
+      event_manager: 'events-list',
+      treasurer: 'financial-dash',
+      admin: 'club-dash',
+      super_admin: 'saas-orgs'
+    };
+    setActiveTab(homeTabMap[newSession.role] || 'club-dash');
+    setViewState('app');
+    handleToast(`✨ Welcome to ${dbInstance.data.clubs[newSession.orgId]?.name || 'ClubSphere'}!`);
+  };
+
+  const handleLogout = () => {
+    setSession(null);
+    setViewState('landing');
+    handleToast('👋 Signed out of ClubSphere successfully.');
   };
 
   const handleResetDb = () => {
     dbInstance.reset();
-    setDataVersion(v => v + 1);
-    handleToast('🔄 Mock Database has been restored to factory seed state.');
+    setDataVersion((v) => v + 1);
+    handleToast('🔄 Mock Database has been restored to clean seed state.');
   };
+
+  // Dedicated Super Admin Club Creation Page
+  if (viewState === 'super-admin-club-creation') {
+    return (
+      <SuperAdminClubCreationView
+        onBack={() => setViewState('landing')}
+        onClubCreated={(newClub) => {
+          setDataVersion(v => v + 1);
+          handleToast(`🚀 Organization ${newClub.name} launched with domain ${newClub.emailDomain}!`);
+        }}
+      />
+    );
+  }
+
+  // If user is on Landing Page or Auth Page
+  if (viewState === 'landing' || !session) {
+    if (viewState === 'auth') {
+      return (
+        <AuthView
+          initialMode={authInitialMode}
+          onAuthSuccess={handleAuthSuccess}
+          onBackToLanding={() => setViewState('landing')}
+        />
+      );
+    }
+
+    return (
+      <LandingPageView
+        onLoginClick={() => {
+          setAuthInitialMode('login');
+          setViewState('auth');
+        }}
+        onRegisterClick={() => {
+          setAuthInitialMode('register');
+          setViewState('auth');
+        }}
+        onDemoSelect={handleRoleAndClubSelect}
+        onSuperAdminClick={() => setViewState('super-admin-club-creation')}
+      />
+    );
+  }
 
   // Role Permissions Mapping for RoleGuard
   const roleAllowedTabs = {
-    student: ['my-membership', 'browse-events', 'my-tickets', 'merch-shop', 'my-orders', 'my-certificates', 'announcements-feed', 'feedback', 'design-system'],
-    volunteer: ['tasks-kanban', 'volunteer-portal', 'my-reimbursements', 'leaderboard', 'announcements-feed', 'design-system'],
-    event_manager: ['events-list', 'qr-checkin', 'attendance', 'event-profit', 'reports-hub', 'feedback', 'announcements-mgmt', 'design-system'],
-    treasurer: ['financial-dash', 'income-ledger', 'expenses-ledger', 'reimbursements-mgmt', 'budget-mgmt', 'sponsors', 'donations', 'reports-hub', 'design-system'],
+    student: ['my-membership', 'browse-events', 'my-tickets', 'merch-shop', 'my-orders', 'my-certificates', 'announcements-feed', 'feedback'],
+    volunteer: ['tasks-kanban', 'volunteer-portal', 'my-reimbursements', 'leaderboard', 'announcements-feed'],
+    event_manager: ['events-list', 'qr-checkin', 'attendance', 'event-profit', 'reports-hub', 'feedback', 'announcements-mgmt'],
+    treasurer: ['financial-dash', 'income-ledger', 'expenses-ledger', 'reimbursements-mgmt', 'budget-mgmt', 'sponsors', 'donations', 'reports-hub'],
     admin: [
       'club-dash', 'members-list', 'member-verify', 'events-list', 'inventory', 'fundraisers',
       'volunteers-list', 'financial-dash', 'reports-hub', 'announcements-mgmt', 'sponsors',
       'certificates-mgmt', 'ai-copilot', 'audit-log', 'settings', 'qr-checkin', 'attendance',
-      'reimbursements-mgmt', 'design-system'
+      'reimbursements-mgmt'
     ],
-    super_admin: ['saas-orgs', 'saas-plans', 'saas-analytics', 'saas-modules', 'audit-log', 'settings', 'design-system']
+    super_admin: ['saas-orgs', 'saas-plans', 'saas-analytics', 'saas-modules', 'audit-log', 'settings']
   };
 
-  const isTabAllowed = (roleAllowedTabs[session.role] || []).includes(activeTab) || activeTab === 'design-system';
+  const isTabAllowed = (roleAllowedTabs[session.role] || []).includes(activeTab);
 
   // Render current tab content
   const renderTabContent = () => {
@@ -151,7 +238,7 @@ export default function App() {
             };
             setActiveTab(homeMap[session.role] || 'club-dash');
           }}
-          onOpenQuickLogin={() => setIsQuickLoginOpen(true)}
+          onOpenQuickLogin={handleLogout}
         />
       );
     }
@@ -226,8 +313,6 @@ export default function App() {
         return <AuditLogView session={session} activeClub={activeClub} onToast={handleToast} />;
       case 'settings':
         return <SettingsView session={session} activeClub={activeClub} onToast={handleToast} onResetDb={handleResetDb} />;
-      case 'design-system':
-        return <DesignSystemShowcaseView />;
       default:
         return <ClubDashboardView session={session} activeClub={activeClub} onNavigate={setActiveTab} />;
     }
@@ -239,12 +324,10 @@ export default function App() {
       <Navbar
         session={session}
         activeClub={activeClub}
-        onClubChange={handleClubChange}
-        onOpenRoleSwitcher={() => setIsQuickLoginOpen(true)}
-        onOpenQuickLogin={() => setIsQuickLoginOpen(true)}
         onToggleAICopilot={() => setIsAICopilotDrawerOpen(true)}
-        unreadNotifsCount={dbInstance.data.notifications.filter(n => n.unread).length}
+        unreadNotifsCount={notifsList.filter((n) => n.unread).length}
         onOpenNotifs={() => setIsNotifsOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Main Workspace Layout */}
@@ -260,14 +343,6 @@ export default function App() {
           {renderTabContent()}
         </main>
       </div>
-
-      {/* Quick Demo Login & Role Switcher Modal */}
-      <QuickLoginModal
-        isOpen={isQuickLoginOpen}
-        onClose={() => setIsQuickLoginOpen(false)}
-        currentSession={session}
-        onSelectRoleAndClub={handleRoleAndClubSelect}
-      />
 
       {/* Slide-out AI Copilot Drawer */}
       {isAICopilotDrawerOpen && (
@@ -287,7 +362,7 @@ export default function App() {
         headerColor="var(--accent-yellow)"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {dbInstance.data.notifications.map((n) => (
+          {notifsList.map((n) => (
             <div
               key={n.id}
               style={{
@@ -301,13 +376,13 @@ export default function App() {
                 <h4 style={{ fontSize: '14px', fontWeight: 900, margin: 0 }}>{n.title}</h4>
                 <span style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 700 }}>{n.time}</span>
               </div>
-              <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink)' }}>{n.message}</p>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink)', margin: 0 }}>{n.message}</p>
             </div>
           ))}
         </div>
       </Drawer>
 
-      {/* Floating Neo-Brutalist Toast Alert */}
+      {/* Floating Toast Alert */}
       {toastMessage && (
         <div
           style={{

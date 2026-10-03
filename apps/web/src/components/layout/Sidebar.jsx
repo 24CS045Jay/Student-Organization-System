@@ -192,30 +192,6 @@ export const Sidebar = ({
           })}
         </nav>
       </div>
-
-      {/* Design System & Docs Shortcut */}
-      <div style={{ borderTop: '2px solid #121212', paddingTop: '12px', marginTop: '12px' }}>
-        <button
-          onClick={() => onSelectTab('design-system')}
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 12px',
-            borderRadius: '10px',
-            border: activeTab === 'design-system' ? '2px solid #121212' : '2px dashed #71717A',
-            backgroundColor: activeTab === 'design-system' ? 'var(--accent-pink)' : '#FAF5EE',
-            color: activeTab === 'design-system' ? '#fff' : 'var(--ink)',
-            fontWeight: 800,
-            fontSize: '12px',
-            cursor: 'pointer'
-          }}
-        >
-          <Palette size={14} />
-          <span>Neo-Brutalist UI Kit</span>
-        </button>
-      </div>
     </aside>
   );
 };

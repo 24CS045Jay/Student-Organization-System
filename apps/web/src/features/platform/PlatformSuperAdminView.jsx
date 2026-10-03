@@ -1,23 +1,83 @@
 import React, { useState } from 'react';
-import { Card, Button, Badge, StatCard, ProgressBar } from '../../components/ui/index';
+import { Card, Button, Badge, StatCard, Drawer, Modal } from '../../components/ui/index';
 import { clubService } from '../../services/clubService';
 import { dbInstance, inr } from '../../mock/db';
-import { Building, Layers, Zap, BarChart3, Globe, ShieldCheck, CheckCircle2, Server } from 'lucide-react';
+import {
+  Building,
+  Layers,
+  Zap,
+  BarChart3,
+  Globe,
+  Plus,
+  Mail,
+  ShieldCheck,
+  CheckCircle2,
+  Server
+} from 'lucide-react';
 
 export const PlatformSuperAdminView = ({ session, onToast }) => {
   const [activeTab, setActiveTab] = useState('orgs'); // 'orgs' | 'plans' | 'modules' | 'analytics'
-  const platform = clubService.getPlatformData();
+  const [isAddClubOpen, setIsAddClubOpen] = useState(false);
+  const [dataVersion, setDataVersion] = useState(0);
 
+  // New Club Form State
+  const [clubForm, setClubForm] = useState({
+    name: '',
+    short: '',
+    category: 'Technical & Engineering',
+    emailDomain: '',
+    color: '#FFE853',
+    adminName: 'Club Lead',
+    adminEmail: ''
+  });
+
+  const platform = clubService.getPlatformData();
   const orgs = platform.organizations || [];
   const plans = platform.plans || [];
   const modules = platform.modules || [];
   const analytics = platform.analytics || {};
+
+  const handleCreateClub = (e) => {
+    e.preventDefault();
+    if (!clubForm.name || !clubForm.emailDomain) {
+      if (onToast) onToast('⚠️ Please enter Club Name and Email Domain.');
+      return;
+    }
+
+    try {
+      const shortCode = clubForm.short || clubForm.name.split(' ')[0].toLowerCase();
+      const domain = clubForm.emailDomain.startsWith('@') ? clubForm.emailDomain : `@${clubForm.emailDomain}`;
+
+      clubService.createClubOrganization({
+        ...clubForm,
+        short: shortCode,
+        emailDomain: domain
+      }, session);
+
+      setIsAddClubOpen(false);
+      setDataVersion(v => v + 1);
+      if (onToast) onToast(`🏢 Registered "${clubForm.name}" with domain ${domain}! Users can now register with this email domain.`);
+
+      setClubForm({
+        name: '',
+        short: '',
+        category: 'Technical & Engineering',
+        emailDomain: '',
+        color: '#FFE853',
+        adminName: 'Club Lead',
+        adminEmail: ''
+      });
+    } catch (err) {
+      alert(err.message);
+    }
+  };
 
   const toggleModule = (modId) => {
     const mod = modules.find(m => m.id === modId);
     if (mod) {
       mod.enabled = !mod.enabled;
       dbInstance.save();
+      setDataVersion(v => v + 1);
       if (onToast) onToast(`⚡ SaaS Module "${mod.name}" ${mod.enabled ? 'Enabled' : 'Disabled'} globally!`);
     }
   };
@@ -26,14 +86,17 @@ export const PlatformSuperAdminView = ({ session, onToast }) => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <Badge variant="black">Items 10–13, 17 Multi-Tenant SaaS Platform Root</Badge>
+          <Badge variant="black">Platform Root Authority</Badge>
           <h1 style={{ fontSize: '28px', fontWeight: 900, margin: '8px 0 0' }}>
-            Platform Super Admin & SaaS Tenant Manager
+            Platform Super Admin & Club Registry
           </h1>
           <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)' }}>
-            Hierarchical organization management (University → College → Dept), SaaS tier pricing, and module architecture.
+            Super Admin exclusive portal: Onboard new campus organizations, configure unique email domains, and manage SaaS quotas.
           </p>
         </div>
+        <Button variant="yellow" onClick={() => setIsAddClubOpen(true)} icon={Plus}>
+          Onboard New Club & Domain
+        </Button>
       </div>
 
       {/* Tabs */}
@@ -52,7 +115,7 @@ export const PlatformSuperAdminView = ({ session, onToast }) => {
           onClick={() => setActiveTab('plans')}
           icon={Layers}
         >
-          Subscription Plans & Limits (Item 13)
+          Subscription Plans & Limits
         </Button>
         <Button
           variant={activeTab === 'modules' ? 'pink' : 'white'}
@@ -60,7 +123,7 @@ export const PlatformSuperAdminView = ({ session, onToast }) => {
           onClick={() => setActiveTab('modules')}
           icon={Zap}
         >
-          Module Architecture (Item 17)
+          Module Architecture
         </Button>
         <Button
           variant={activeTab === 'analytics' ? 'green' : 'white'}
@@ -68,46 +131,52 @@ export const PlatformSuperAdminView = ({ session, onToast }) => {
           onClick={() => setActiveTab('analytics')}
           icon={BarChart3}
         >
-          Platform Analytics (Item 14)
+          Platform Analytics
         </Button>
       </div>
 
       {/* Organizations Hierarchy Tab */}
       {activeTab === 'orgs' && (
-        <Card title="🏢 Multi-Tenant Organizations & Hierarchy Tree (Items 10-12)" headerBg="var(--accent-yellow)">
+        <Card title="🏢 Multi-Tenant Organizations & Unique Email Domains" headerBg="var(--accent-yellow)">
           <div className="neo-table-container">
             <table className="neo-table">
               <thead>
                 <tr>
                   <th>Organization Name</th>
-                  <th>Hierarchy Path</th>
-                  <th>Department / Cell</th>
+                  <th>Unique Email Domain</th>
+                  <th>Category</th>
                   <th>Subscription Plan</th>
                   <th>Active Members</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {orgs.map((org) => (
-                  <tr key={org.id}>
-                    <td>
-                      <div style={{ fontWeight: 900 }}>{org.name}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>Tenant ID: {org.id}</div>
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 800 }}>{org.university}</div>
-                      <div style={{ fontSize: '11px', color: '#71717A' }}>↳ {org.college}</div>
-                    </td>
-                    <td><Badge variant="blue">{org.dept}</Badge></td>
-                    <td>
-                      <Badge variant={org.plan === 'Enterprise' ? 'yellow' : 'purple'}>
-                        {org.plan} Tier
-                      </Badge>
-                    </td>
-                    <td style={{ fontWeight: 900 }}>{org.members} Students</td>
-                    <td><Badge variant="green">{org.status}</Badge></td>
-                  </tr>
-                ))}
+                {orgs.map((org) => {
+                  const clubData = dbInstance.data.clubs[org.id] || {};
+                  const domain = org.emailDomain || clubData.emailDomain || `@${org.id}.campus.edu`;
+                  return (
+                    <tr key={org.id}>
+                      <td>
+                        <div style={{ fontWeight: 900 }}>{org.name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>Tenant ID: {org.id}</div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 8px', backgroundColor: '#FEF3C7', border: '1px solid #121212', borderRadius: '6px', fontSize: '12px', fontWeight: 900, color: '#92400E' }}>
+                          <Mail size={12} />
+                          <span>{domain}</span>
+                        </div>
+                      </td>
+                      <td><Badge variant="blue">{org.department || org.dept || 'General'}</Badge></td>
+                      <td>
+                        <Badge variant={org.tier === 'Enterprise' ? 'yellow' : 'purple'}>
+                          {org.tier || org.plan || 'Pro Tier'}
+                        </Badge>
+                      </td>
+                      <td style={{ fontWeight: 900 }}>{clubData.members?.length || org.membersCount || 1} Students</td>
+                      <td><Badge variant="green">{org.status || 'Active'}</Badge></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -138,26 +207,23 @@ export const PlatformSuperAdminView = ({ session, onToast }) => {
 
               <div style={{ borderTop: '2px solid #000', paddingTop: '12px' }}>
                 <span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--ink-muted)' }}>
-                  Included Features:
+                  Included Features
                 </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
-                  {p.features.map((f, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700 }}>
-                      <span style={{ color: '#059669', fontWeight: 900 }}>✓</span>
-                      <span>{f}</span>
-                    </div>
+                <ul style={{ margin: '8px 0 0', paddingLeft: '18px', fontSize: '12px', fontWeight: 700 }}>
+                  {(p.features || []).map((feat, i) => (
+                    <li key={i}>{feat}</li>
                   ))}
-                </div>
+                </ul>
               </div>
             </Card>
           ))}
         </div>
       )}
 
-      {/* Modules Architecture Tab */}
+      {/* Modules Tab */}
       {activeTab === 'modules' && (
-        <Card title="⚡ Pluggable SaaS Module Architecture (Item 17)" headerBg="var(--accent-pink)">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <Card title="⚡ Global SaaS Module Toggles" headerBg="var(--accent-pink)">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
             {modules.map((m) => (
               <div
                 key={m.id}
@@ -172,22 +238,17 @@ export const PlatformSuperAdminView = ({ session, onToast }) => {
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h3 style={{ fontSize: '16px', fontWeight: 900, margin: 0 }}>{m.name}</h3>
-                    <Badge variant="purple">{m.category}</Badge>
-                    <Badge variant={m.tier === 'Enterprise' ? 'yellow' : 'blue'}>{m.tier} Required</Badge>
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--ink-muted)', fontWeight: 700, marginTop: '2px' }}>
-                    Global Tenant Module ID: {m.id}
-                  </div>
+                  <h4 style={{ fontSize: '15px', fontWeight: 900, margin: '0 0 4px' }}>{m.name}</h4>
+                  <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-muted)', margin: 0 }}>
+                    {m.description}
+                  </p>
                 </div>
-
                 <Button
                   variant={m.enabled ? 'green' : 'white'}
                   size="sm"
                   onClick={() => toggleModule(m.id)}
                 >
-                  {m.enabled ? '✓ Enabled' : 'Disabled'}
+                  {m.enabled ? 'Enabled' : 'Disabled'}
                 </Button>
               </div>
             ))}
@@ -197,37 +258,135 @@ export const PlatformSuperAdminView = ({ session, onToast }) => {
 
       {/* Analytics Tab */}
       {activeTab === 'analytics' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-          <StatCard
-            title="Total Tenant Clubs"
-            value={analytics.totalTenants}
-            subtitle="Campus Organizations"
-            icon={Building}
-            color="var(--accent-yellow)"
-          />
-          <StatCard
-            title="Active Students"
-            value={analytics.activeStudents}
-            subtitle="Registered Users"
-            icon={Globe}
-            color="var(--accent-green)"
-          />
-          <StatCard
-            title="Platform Ticket Volume"
-            value={inr(analytics.grossPlatformTicketRevenue)}
-            subtitle="Gross Processed Volume"
-            icon={BarChart3}
-            color="var(--accent-purple)"
-          />
-          <StatCard
-            title="System SLA Uptime"
-            value={analytics.systemUptime}
-            subtitle={`Avg Latency: ${analytics.avgResponseTime}`}
-            icon={Server}
-            color="var(--accent-pink)"
-          />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+            <StatCard
+              title="Total Platform Organizations"
+              value={orgs.length}
+              subtitle="Active Tenants"
+              icon={Building}
+              color="var(--accent-yellow)"
+            />
+            <StatCard
+              title="Total Campus Members"
+              value={analytics.totalMembers || 356}
+              subtitle="Across All Clubs"
+              icon={Building}
+              color="var(--accent-green)"
+            />
+            <StatCard
+              title="Monthly Active Scans"
+              value={analytics.monthlyScans || 2840}
+              subtitle="QR Gate Tickets"
+              icon={Zap}
+              color="var(--accent-purple)"
+            />
+            <StatCard
+              title="Gross Gross GMV"
+              value={inr(analytics.gmv || 480000)}
+              subtitle="Tickets & Merch"
+              icon={BarChart3}
+              color="var(--accent-pink)"
+            />
+          </div>
         </div>
       )}
+
+      {/* Add New Club & Email Domain Drawer */}
+      <Drawer
+        isOpen={isAddClubOpen}
+        onClose={() => setIsAddClubOpen(false)}
+        title="🏢 Onboard New Club Organization"
+        headerColor="var(--accent-yellow)"
+      >
+        <form onSubmit={handleCreateClub} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <label className="neo-label">Club Organization Name *</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Robotics & Automation Society"
+              value={clubForm.name}
+              onChange={(e) => setClubForm({ ...clubForm, name: e.target.value })}
+              className="neo-input"
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <label className="neo-label">Short Name / Code</label>
+              <input
+                type="text"
+                placeholder="e.g. Robotics"
+                value={clubForm.short}
+                onChange={(e) => setClubForm({ ...clubForm, short: e.target.value })}
+                className="neo-input"
+              />
+            </div>
+            <div>
+              <label className="neo-label">Category</label>
+              <input
+                type="text"
+                placeholder="e.g. Technical / Hardware"
+                value={clubForm.category}
+                onChange={(e) => setClubForm({ ...clubForm, category: e.target.value })}
+                className="neo-input"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="neo-label">Unique Club Email Domain *</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. @robotics.campus.edu"
+              value={clubForm.emailDomain}
+              onChange={(e) => setClubForm({ ...clubForm, emailDomain: e.target.value })}
+              className="neo-input"
+            />
+            <p style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 700, margin: '4px 0 0' }}>
+              Any user registering with an email containing this domain will automatically enter this club's isolated workspace.
+            </p>
+          </div>
+
+          <div>
+            <label className="neo-label">Initial Admin Email</label>
+            <input
+              type="email"
+              placeholder="e.g. admin@robotics.campus.edu"
+              value={clubForm.adminEmail}
+              onChange={(e) => setClubForm({ ...clubForm, adminEmail: e.target.value })}
+              className="neo-input"
+            />
+          </div>
+
+          <div>
+            <label className="neo-label">Theme Accent Color</label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {['#FFE853', '#FF70A6', '#70D6FF', '#6BCB77', '#D946EF', '#FFD93D'].map((col) => (
+                <button
+                  key={col}
+                  type="button"
+                  onClick={() => setClubForm({ ...clubForm, color: col })}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    backgroundColor: col,
+                    border: clubForm.color === col ? '3px solid #121212' : '1.5px solid #CBD5E1',
+                    borderRadius: '8px',
+                    cursor: 'pointer'
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <Button variant="yellow" type="submit" style={{ marginTop: '10px' }}>
+            Register Organization & Domain
+          </Button>
+        </form>
+      </Drawer>
     </div>
   );
 };

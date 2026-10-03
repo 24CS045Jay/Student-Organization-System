@@ -4,6 +4,9 @@
 // ==========================================================================
 
 import { dbInstance, inr } from '../mock/db';
+import { generateSignedQRToken, verifyQRToken } from './qrSecurityService';
+import { sendEmail, sendTicketConfirmationEmail } from './emailService';
+import { notificationService } from './notificationService';
 
 export const clubService = {
   // Tenant validation
@@ -175,7 +178,7 @@ export const clubService = {
     return newEvent;
   },
 
-  buyTicket: (orgId, eventId, attendeeInfo, session) => {
+  buyTicket: (orgId, eventId, attendeeInfo, session, paymentDetails = null) => {
     const club = dbInstance.getClub(orgId);
     const event = club.events.find(e => e.id === eventId);
     if (!event) throw new Error('Event not found');
@@ -190,6 +193,8 @@ export const clubService = {
     event.sold += 1;
 
     const tktId = `TKT-${club.prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const qrSignedToken = generateSignedQRToken(tktId, orgId, event.id);
+
     const newTicket = {
       id: tktId,
       eventId: event.id,
@@ -202,7 +207,10 @@ export const clubService = {
       status: 'Valid',
       checkInTime: null,
       seat: `Pass #${event.sold}`,
-      purchaseDate: new Date().toISOString().split('T')[0]
+      purchaseDate: new Date().toISOString().split('T')[0],
+      qrToken: qrSignedToken,
+      paymentId: paymentDetails?.paymentId || `PAY-${Math.floor(100000 + Math.random() * 900000)}`,
+      paymentProvider: paymentDetails?.provider || 'razorpay'
     };
 
     club.tickets.unshift(newTicket);
@@ -216,8 +224,27 @@ export const clubService = {
       tktSource.count += 1;
     }
 
-    dbInstance.logAudit(orgId, session?.email, session?.role, 'Purchased Ticket', `Ticket ${tktId} for "${event.title}" by ${newTicket.attendeeName} (₹${price})`, 'Available Seat', `Seat ${event.sold}/${event.capacity}`);
+    dbInstance.logAudit(orgId, session?.email, session?.role, 'Purchased Ticket', `Ticket ${tktId} for "${event.title}" by ${newTicket.attendeeName} (₹${price}, Razorpay Ref: ${newTicket.paymentId})`, 'Available Seat', `Seat ${event.sold}/${event.capacity}`);
     dbInstance.save();
+
+    // Trigger transactional confirmation email (Phase 5)
+    sendTicketConfirmationEmail({
+      recipientEmail: newTicket.email,
+      attendeeName: newTicket.attendeeName,
+      eventTitle: event.title,
+      ticketId: newTicket.id,
+      seat: newTicket.seat,
+      price
+    }).catch(console.error);
+
+    // Dispatch in-app notification
+    notificationService.addNotification({
+      orgId,
+      type: 'ticket',
+      title: `🎟️ Pass Confirmed: ${event.title}`,
+      body: `Ticket #${newTicket.id} booked successfully for ${newTicket.attendeeName}. Verified payment ₹${price}.`
+    });
+
     return newTicket;
   },
 
@@ -537,6 +564,34 @@ export const clubService = {
     club.announcements.unshift(newAnn);
     dbInstance.logAudit(orgId, session?.email, session?.role, 'Broadcast Announcement', `Published "${newAnn.title}" to ${newAnn.audience}`, 'Draft', 'Published');
     dbInstance.save();
+
+    // Resend Email Broadcast if Email channel selected (Phase 5)
+    if (newAnn.channels.includes('Email')) {
+      const recipientEmails = club.members.map(m => m.email).filter(Boolean);
+      sendEmail({
+        to: recipientEmails.length > 0 ? recipientEmails[0] : 'members@charusat.edu.in',
+        subject: `📢 [${club.name}] ${newAnn.title}`,
+        html: `
+          <div style="font-family: sans-serif; padding: 20px; background-color: #FDF8F0;">
+            <h2 style="color: #121212;">${newAnn.title}</h2>
+            <p style="font-size: 14px; color: #555;">Audience: <strong>${newAnn.audience}</strong> • Posted by: ${newAnn.author}</p>
+            <div style="background: white; border: 2px solid black; padding: 16px; border-radius: 8px; margin: 16px 0;">
+              ${newAnn.content}
+            </div>
+            <p style="font-size: 12px; color: #777;">Sent via ClubSphere Communication Broadcast Hub.</p>
+          </div>
+        `
+      }).catch(console.error);
+    }
+
+    // In-App Notification Fan-out
+    notificationService.addNotification({
+      orgId,
+      type: 'announcement',
+      title: `📢 ${newAnn.title}`,
+      body: newAnn.content.length > 90 ? newAnn.content.slice(0, 90) + '...' : newAnn.content
+    });
+
     return newAnn;
   },
 
@@ -700,5 +755,101 @@ export const clubService = {
     }
 
     return `💡 **ClubSphere AI Insights for ${club.name}:**\n• Operating status is healthy with **${inr(club.finance.netBalance)}** cash reserves.\n• ${club.events.length} active events on schedule with ${club.members.length} registered club members.\n• Try asking: "How much did we spend?", "Which event earned the most?", or "Show unpaid reimbursements".`;
+  },
+
+  // --- Platform Super Admin Club Creation ---
+  createClubOrganization: (clubPayload, session) => {
+    const id = clubPayload.id || clubPayload.short.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const prefix = (clubPayload.prefix || clubPayload.short.substring(0, 3)).toUpperCase();
+    const domain = clubPayload.emailDomain?.startsWith('@') ? clubPayload.emailDomain.toLowerCase() : `@${clubPayload.emailDomain.toLowerCase()}`;
+    
+    // Create new club template in dbInstance
+    const newClub = {
+      id,
+      name: clubPayload.name,
+      short: clubPayload.short,
+      prefix,
+      category: clubPayload.category || 'General Club',
+      color: clubPayload.color || '#FFE853',
+      emailDomain: domain,
+      membershipTypes: [
+        { name: 'Standard Member', annualFee: 500, benefits: ['Event Discounts', 'Digital Member Pass'] },
+        { name: 'Core Executive', annualFee: 1000, benefits: ['VIP Badge', 'All Workshop Passes'] }
+      ],
+      members: [
+        {
+          id: `${prefix}-001`,
+          name: clubPayload.adminName || 'Club Admin',
+          email: clubPayload.adminEmail || `admin${domain}`,
+          studentId: '24ADM01',
+          dept: 'Student Affairs',
+          type: 'Core Executive',
+          exp: '2027-12-31',
+          startDate: new Date().toISOString().split('T')[0],
+          paid: 1,
+          status: 'Active',
+          photo: '🧑‍💼',
+          phone: '+91 99999 88888',
+          history: [{ action: 'Organization Founded', date: new Date().toISOString().split('T')[0] }]
+        }
+      ],
+      events: [],
+      tickets: [],
+      merchandise: [],
+      orders: [],
+      fundraisers: [],
+      tasks: [],
+      volunteers: [],
+      reimbursements: [],
+      finance: {
+        totalIncome: 10000,
+        totalExpenses: 2000,
+        netBalance: 8000,
+        incomeSources: [{ source: 'Initial Seed Grant', amount: 10000, count: 1 }],
+        expensesList: [{ id: `EXP-${prefix}-01`, title: 'Club Domain Setup & Branding', category: 'Operations', amount: 2000, date: new Date().toISOString().split('T')[0], approvedBy: 'Super Admin', receiptUrl: '' }],
+        budgetAllocated: 100000,
+        budgetSpent: 2000
+      },
+      sponsors: [],
+      donations: [],
+      certificates: [],
+      feedback: [],
+      announcements: [{ id: `ann-${id}-1`, title: `Welcome to ${clubPayload.name}!`, date: new Date().toISOString().split('T')[0], audience: 'All Members', channels: ['Website', 'Email'], status: 'Published', author: 'Super Admin', content: `The ${clubPayload.name} is officially onboarded to ClubSphere.`, reach: 1 }],
+      renewalReminders: []
+    };
+
+    dbInstance.data.clubs[id] = newClub;
+
+    // Add to platform organizations list
+    dbInstance.data.platform.organizations.push({
+      id,
+      name: clubPayload.name,
+      university: 'Campus Central',
+      college: 'Student Activities Directorate',
+      department: clubPayload.category,
+      tier: 'Pro Tier',
+      membersCount: 1,
+      emailDomain: domain,
+      status: 'Active'
+    });
+
+    dbInstance.save();
+    dbInstance.logAudit(id, session?.email || 'super_admin@clubsphere.demo', 'Super Admin', 'Created Club Organization', `Created new organization ${clubPayload.name} with domain ${domain}`, 'None', 'Active Organization');
+
+    return newClub;
+  },
+
+  deleteClubOrganization: (orgId, session) => {
+    if (dbInstance.data.clubs[orgId]) {
+      const clubName = dbInstance.data.clubs[orgId].name;
+      delete dbInstance.data.clubs[orgId];
+      if (dbInstance.data.platform?.organizations) {
+        dbInstance.data.platform.organizations = dbInstance.data.platform.organizations.filter(o => o.id !== orgId);
+      }
+      dbInstance.save();
+      dbInstance.logAudit('platform', session?.email || 'super_admin@clubsphere.demo', 'Super Admin', 'Deleted Club Organization', `Deleted organization ${clubName} (${orgId})`, 'Active', 'Deleted');
+      return true;
+    }
+    return false;
   }
 };
