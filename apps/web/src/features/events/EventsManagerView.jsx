@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { Card, Button, Badge, Drawer, Modal, ProgressBar } from '../../components/ui/index';
 import { clubService } from '../../services/clubService';
-import { Calendar, Plus, Edit, Trash2, Users, DollarSign, TrendingUp, CheckCircle, Clock } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Users, DollarSign, TrendingUp, CheckCircle, Clock, Eye, Globe, XCircle } from 'lucide-react';
 
 export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, onNavigate }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedEventForProfit, setSelectedEventForProfit] = useState(null);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+
   const [formData, setFormData] = useState({
     title: '',
     category: 'Workshop',
@@ -19,7 +22,30 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
     description: ''
   });
 
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    category: 'Workshop',
+    date: '',
+    time: '',
+    location: '',
+    capacity: 100,
+    memberPrice: 100,
+    nonMemberPrice: 200,
+    status: 'Published',
+    description: ''
+  });
+
   const events = clubService.getEvents(activeClub.id);
+
+  const filteredEvents = events.filter(ev => {
+    const s = (ev.status || '').toLowerCase().trim();
+    if (statusFilter === 'published') return s === 'published';
+    if (statusFilter === 'draft') return s === 'draft';
+    return true;
+  });
+
+  const publishedCount = events.filter(e => (e.status || '').toLowerCase() === 'published').length;
+  const draftCount = events.filter(e => (e.status || '').toLowerCase() === 'draft').length;
 
   const handleCreateEvent = (e) => {
     e.preventDefault();
@@ -40,10 +66,72 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
         status: 'Published',
         description: ''
       });
-      if (onToast) onToast(`✅ Created event: ${created.title}`);
+      if (onToast) onToast(`✅ Created event "${created.title}" (${created.status})! Visible to members!`);
       if (onDataChange) onDataChange();
     } catch (err) {
       alert(err.message);
+    }
+  };
+
+  const handlePublishEvent = (ev) => {
+    try {
+      clubService.publishEvent(activeClub.id, ev.id, session);
+      if (onToast) onToast(`📢 "${ev.title}" is now Published! All students & members can see and register for this event!`);
+      if (onDataChange) onDataChange();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleUnpublishEvent = (ev) => {
+    try {
+      clubService.updateEventStatus(activeClub.id, ev.id, 'Draft', session);
+      if (onToast) onToast(`📝 "${ev.title}" set to Draft (Hidden from members).`);
+      if (onDataChange) onDataChange();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleOpenEdit = (ev) => {
+    setEditingEvent(ev);
+    setEditFormData({
+      title: ev.title,
+      category: ev.category || 'Workshop',
+      date: ev.date || '',
+      time: ev.time || '',
+      location: ev.location || '',
+      capacity: ev.capacity || 100,
+      memberPrice: ev.memberPrice || 0,
+      nonMemberPrice: ev.nonMemberPrice || 0,
+      status: ev.status || 'Published',
+      description: ev.description || ''
+    });
+  };
+
+  const handleSaveEdit = (e) => {
+    e.preventDefault();
+    if (!editingEvent) return;
+
+    try {
+      clubService.updateEvent(activeClub.id, editingEvent.id, editFormData, session);
+      setEditingEvent(null);
+      if (onToast) onToast(`✅ Event "${editFormData.title}" updated successfully!`);
+      if (onDataChange) onDataChange();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteEvent = (ev) => {
+    if (window.confirm(`Are you sure you want to delete event "${ev.title}"?`)) {
+      try {
+        clubService.deleteEvent(activeClub.id, ev.id, session);
+        if (onToast) onToast(`🗑️ Event "${ev.title}" removed.`);
+        if (onDataChange) onDataChange();
+      } catch (err) {
+        alert(err.message);
+      }
     }
   };
 
@@ -58,14 +146,39 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
             Configure schedules, ticket tiers, registration limits, and event profitability analysis for {activeClub.name}.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <Button variant="black" size="sm" onClick={() => onNavigate && onNavigate('browse-events')} icon={Globe}>
+            View Student Portal
+          </Button>
           <Button variant="black" size="sm" onClick={() => onNavigate && onNavigate('qr-checkin')}>
-            Open QR Check-in Desk
+            QR Check-in Desk
           </Button>
           <Button variant="yellow" size="sm" onClick={() => setIsCreateOpen(true)} icon={Plus}>
             Create New Event
           </Button>
         </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <button
+          onClick={() => setStatusFilter('all')}
+          className={`neo-btn ${statusFilter === 'all' ? 'neo-btn-black' : 'neo-btn-white'} neo-btn-sm`}
+        >
+          All Events ({events.length})
+        </button>
+        <button
+          onClick={() => setStatusFilter('published')}
+          className={`neo-btn ${statusFilter === 'published' ? 'neo-btn-green' : 'neo-btn-white'} neo-btn-sm`}
+        >
+          ✓ Published & Live ({publishedCount})
+        </button>
+        <button
+          onClick={() => setStatusFilter('draft')}
+          className={`neo-btn ${statusFilter === 'draft' ? 'neo-btn-yellow' : 'neo-btn-white'} neo-btn-sm`}
+        >
+          📝 Drafts ({draftCount})
+        </button>
       </div>
 
       {/* Events Table */}
@@ -78,62 +191,110 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
               <th>Date & Location</th>
               <th>Capacity & Bookings</th>
               <th>Pricing (Mem / Non)</th>
-              <th>Status</th>
-              <th>Financial Profitability</th>
+              <th>Live Status</th>
+              <th>Status Action</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {events.map((ev) => {
-              const seatsPct = Math.round((ev.sold / ev.capacity) * 100);
-              const estGross = (ev.sold * ((ev.memberPrice + ev.nonMemberPrice) / 2));
-              const totalExp = Object.values(ev.budget || {}).reduce((a, b) => a + b, 0);
-              const netProfit = estGross - totalExp;
+            {filteredEvents.length === 0 ? (
+              <tr>
+                <td colSpan={8} style={{ textAlign: 'center', padding: '32px', fontWeight: 800, color: 'var(--ink-muted)' }}>
+                  No events found in this category. Click "Create New Event" above to publish one!
+                </td>
+              </tr>
+            ) : (
+              filteredEvents.map((ev) => {
+                const isPublished = (ev.status || '').toLowerCase() === 'published';
+                const seatsPct = Math.round((ev.sold / ev.capacity) * 100);
+                const estGross = (ev.sold * ((ev.memberPrice + ev.nonMemberPrice) / 2));
+                const totalExp = Object.values(ev.budget || {}).reduce((a, b) => a + b, 0);
 
-              return (
-                <tr key={ev.id}>
-                  <td>
-                    <div style={{ fontWeight: 900, fontSize: '14px' }}>{ev.title}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>Org: {ev.organizer}</div>
-                  </td>
-                  <td>
-                    <Badge variant="blue">{ev.category}</Badge>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: 800 }}>{ev.date}</div>
-                    <div style={{ fontSize: '11px', color: '#71717A' }}>{ev.location}</div>
-                  </td>
-                  <td style={{ minWidth: '160px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 900, marginBottom: '3px' }}>
-                      <span>{ev.sold} Sold</span>
-                      <span>{ev.capacity} Cap ({seatsPct}%)</span>
-                    </div>
-                    <ProgressBar value={ev.sold} max={ev.capacity} color={seatsPct > 80 ? 'var(--accent-pink)' : 'var(--accent-green)'} height={10} />
-                  </td>
-                  <td>
-                    <span style={{ fontWeight: 900, color: '#059669' }}>₹{ev.memberPrice}</span> / <span>₹{ev.nonMemberPrice}</span>
-                  </td>
-                  <td>
-                    <Badge variant={ev.status === 'Published' ? 'green' : ev.status === 'Draft' ? 'yellow' : 'black'}>
-                      {ev.status}
-                    </Badge>
-                  </td>
-                  <td>
-                    <Button
-                      variant="purple"
-                      size="sm"
-                      onClick={() => setSelectedEventForProfit(ev)}
-                    >
-                      P&L Statement
-                    </Button>
-                  </td>
-                </tr>
-              );
-            })}
+                return (
+                  <tr key={ev.id}>
+                    <td>
+                      <div style={{ fontWeight: 900, fontSize: '14px' }}>{ev.title}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>Org: {ev.organizer}</div>
+                    </td>
+                    <td>
+                      <Badge variant="blue">{ev.category}</Badge>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 800 }}>{ev.date}</div>
+                      <div style={{ fontSize: '11px', color: '#71717A' }}>{ev.location}</div>
+                    </td>
+                    <td style={{ minWidth: '160px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 900, marginBottom: '3px' }}>
+                        <span>{ev.sold} Sold</span>
+                        <span>{ev.capacity} Cap ({seatsPct}%)</span>
+                      </div>
+                      <ProgressBar value={ev.sold} max={ev.capacity} color={seatsPct > 80 ? 'var(--accent-pink)' : 'var(--accent-green)'} height={10} />
+                    </td>
+                    <td>
+                      <span style={{ fontWeight: 900, color: '#059669' }}>₹{ev.memberPrice}</span> / <span>₹{ev.nonMemberPrice}</span>
+                    </td>
+                    <td>
+                      <Badge variant={isPublished ? 'green' : ev.status === 'Draft' ? 'yellow' : 'black'}>
+                        {isPublished ? '● Published (Live)' : ev.status || 'Draft'}
+                      </Badge>
+                    </td>
+                    <td>
+                      {isPublished ? (
+                        <Button
+                          variant="white"
+                          size="sm"
+                          onClick={() => handleUnpublishEvent(ev)}
+                          title="Switch to Draft (Hide from Members)"
+                        >
+                          Unpublish
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="green"
+                          size="sm"
+                          onClick={() => handlePublishEvent(ev)}
+                          icon={CheckCircle}
+                          title="Publish this event to Student & Member portal"
+                        >
+                          Publish Now
+                        </Button>
+                      )}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <Button
+                          variant="purple"
+                          size="sm"
+                          onClick={() => setSelectedEventForProfit(ev)}
+                          title="P&L Profitability Breakdown"
+                        >
+                          P&L
+                        </Button>
+                        <Button
+                          variant="white"
+                          size="sm"
+                          onClick={() => handleOpenEdit(ev)}
+                          icon={Edit}
+                          title="Edit Event"
+                        />
+                        <Button
+                          variant="pink"
+                          size="sm"
+                          onClick={() => handleDeleteEvent(ev)}
+                          icon={Trash2}
+                          title="Delete Event"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
 
-      {/* Profitability Drawer (Item I) */}
+      {/* Profitability Drawer */}
       <Drawer
         isOpen={Boolean(selectedEventForProfit)}
         onClose={() => setSelectedEventForProfit(null)}
@@ -177,11 +338,138 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
         )}
       </Drawer>
 
+      {/* Edit Event Drawer */}
+      <Drawer
+        isOpen={Boolean(editingEvent)}
+        onClose={() => setEditingEvent(null)}
+        title={`Edit Event: ${editingEvent?.title}`}
+        headerColor="var(--accent-purple)"
+      >
+        {editingEvent && (
+          <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label className="neo-label">Event Title *</label>
+              <input
+                type="text"
+                required
+                value={editFormData.title}
+                onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                className="neo-input"
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label className="neo-label">Category</label>
+                <select
+                  value={editFormData.category}
+                  onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value })}
+                  className="neo-input neo-select"
+                >
+                  <option value="Workshop">Workshop</option>
+                  <option value="Hackathon">Hackathon</option>
+                  <option value="Competition">Competition</option>
+                  <option value="Fest">Fest</option>
+                  <option value="Webinar">Webinar</option>
+                </select>
+              </div>
+              <div>
+                <label className="neo-label">Status</label>
+                <select
+                  value={editFormData.status}
+                  onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+                  className="neo-input neo-select"
+                >
+                  <option value="Published">Published (Public to Members)</option>
+                  <option value="Draft">Draft (Hidden)</option>
+                  <option value="Closed">Closed</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label className="neo-label">Date</label>
+                <input
+                  type="date"
+                  value={editFormData.date}
+                  onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
+                  className="neo-input"
+                />
+              </div>
+              <div>
+                <label className="neo-label">Time</label>
+                <input
+                  type="text"
+                  value={editFormData.time}
+                  onChange={(e) => setEditFormData({ ...editFormData, time: e.target.value })}
+                  className="neo-input"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="neo-label">Location / Room</label>
+              <input
+                type="text"
+                value={editFormData.location}
+                onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
+                className="neo-input"
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+              <div>
+                <label className="neo-label">Max Capacity</label>
+                <input
+                  type="number"
+                  value={editFormData.capacity}
+                  onChange={(e) => setEditFormData({ ...editFormData, capacity: Number(e.target.value) })}
+                  className="neo-input"
+                />
+              </div>
+              <div>
+                <label className="neo-label">Member Price (₹)</label>
+                <input
+                  type="number"
+                  value={editFormData.memberPrice}
+                  onChange={(e) => setEditFormData({ ...editFormData, memberPrice: Number(e.target.value) })}
+                  className="neo-input"
+                />
+              </div>
+              <div>
+                <label className="neo-label">Non-Member (₹)</label>
+                <input
+                  type="number"
+                  value={editFormData.nonMemberPrice}
+                  onChange={(e) => setEditFormData({ ...editFormData, nonMemberPrice: Number(e.target.value) })}
+                  className="neo-input"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="neo-label">Description & Highlights</label>
+              <textarea
+                rows={3}
+                value={editFormData.description}
+                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                className="neo-input"
+              />
+            </div>
+
+            <Button variant="yellow" type="submit" style={{ marginTop: '10px' }}>
+              Save & Apply Changes
+            </Button>
+          </form>
+        )}
+      </Drawer>
+
       {/* Create Event Drawer */}
       <Drawer
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        title="Schedule New Club Event"
+        title="Schedule & Publish New Club Event"
         headerColor="var(--accent-yellow)"
       >
         <form onSubmit={handleCreateEvent} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -219,8 +507,8 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                 className="neo-input neo-select"
               >
-                <option value="Published">Published (Public)</option>
-                <option value="Draft">Draft</option>
+                <option value="Published">Published (Public to Members)</option>
+                <option value="Draft">Draft (Internal Only)</option>
                 <option value="Closed">Closed</option>
               </select>
             </div>
@@ -265,7 +553,7 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
               <input
                 type="number"
                 value={formData.capacity}
-                onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
                 className="neo-input"
               />
             </div>
@@ -274,7 +562,7 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
               <input
                 type="number"
                 value={formData.memberPrice}
-                onChange={(e) => setFormData({ ...formData, memberPrice: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, memberPrice: Number(e.target.value) })}
                 className="neo-input"
               />
             </div>
@@ -283,7 +571,7 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
               <input
                 type="number"
                 value={formData.nonMemberPrice}
-                onChange={(e) => setFormData({ ...formData, nonMemberPrice: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, nonMemberPrice: Number(e.target.value) })}
                 className="neo-input"
               />
             </div>

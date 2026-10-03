@@ -28,6 +28,9 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
 
   const membershipTypes = clubService.getMembershipTypes(activeClub?.id) || [];
   const clubEvents = clubService.getEvents(activeClub?.id) || [];
+  const publishedClubEvents = clubEvents.filter(e => (e.status || '').toLowerCase() === 'published');
+  const allCampusEvents = clubService.getAllEvents ? clubService.getAllEvents().filter(e => (e.status || '').toLowerCase() === 'published') : [];
+  const recommendedEvent = publishedClubEvents[0] || allCampusEvents[0];
 
   const handleRenew = () => {
     try {
@@ -166,6 +169,13 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
               <Badge variant="purple" style={{ marginBottom: '8px' }}>
                 Recommended for You
               </Badge>
+              <h3 style={{ fontSize: '16px', fontWeight: 900 }}>{recommendedEvent?.title || 'Annual Flagship Hackathon & Workshop'}</h3>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-muted)', margin: '4px 0 12px' }}>
+                {recommendedEvent?.description?.substring(0, 100) || 'Connect with campus peers, build real projects, and earn exclusive club certificates!'}...
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 900, fontSize: '15px' }}>
+                  Member Price: <span style={{ color: '#059669' }}>{recommendedEvent ? `₹${recommendedEvent.memberPrice || 0}` : '₹150'}</span>
               <h3 style={{ fontSize: '16px', fontWeight: 900 }}>{activeClub.events?.[0]?.title || 'Annual Flagship Hackathon & Workshop'}</h3>
               <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-muted)', margin: '4px 0 12px' }}>
                 {activeClub.events?.[0]?.description?.substring(0, 100) || 'Connect with campus peers, build real projects, and earn exclusive club certificates!'}...
@@ -180,6 +190,40 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
               </div>
             </div>
           </Card>
+
+          {/* Upcoming Published Events List */}
+          {publishedClubEvents.length > 0 && (
+            <Card title={`📅 Upcoming ${activeClub?.short || activeClub?.name} Events (${publishedClubEvents.length})`} headerBg="var(--accent-blue)">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {publishedClubEvents.slice(0, 3).map((ev) => (
+                  <div
+                    key={ev.id}
+                    style={{
+                      padding: '10px 12px',
+                      backgroundColor: '#FFFFFF',
+                      border: '2px solid #000',
+                      borderRadius: '12px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '8px',
+                      flexWrap: 'wrap'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 900, fontSize: '13px' }}>{ev.title}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 700 }}>
+                        {ev.date} • {ev.location} • ₹{ev.memberPrice}
+                      </div>
+                    </div>
+                    <Button variant="yellow" size="sm" onClick={() => onNavigate && onNavigate('browse-events')}>
+                      Book Pass
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
       </div>
 
