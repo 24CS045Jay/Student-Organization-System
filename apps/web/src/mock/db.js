@@ -5,8 +5,8 @@
 
 export const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 
-// Updated storage key to ensure 100% sync with volunteers and reimbursements
-const STORAGE_KEY = 'clubsphere_live_db_v6';
+// Fresh storage key ensuring zero default mock clubs or demo credentials
+const STORAGE_KEY = 'clubsphere_live_db_v7';
 
 // Fresh initial database state with baseline campus organizations
 export const INITIAL_CLUBS_DATA = {
@@ -222,6 +222,8 @@ export const INITIAL_CLUBS_DATA = {
     stats: { membersCount: 0 }
   }
 };
+// Zero default clubs by default - only clubs created by user/super admin exist
+export const INITIAL_CLUBS_DATA = {};
 
 // Fresh initial users table
 export const INITIAL_USERS_DATA = [];
@@ -261,15 +263,23 @@ class MockDatabase {
 
   load() {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const clubs = (parsed.clubs && Object.keys(parsed.clubs).length > 0)
-          ? parsed.clubs
-          : JSON.parse(JSON.stringify(INITIAL_CLUBS_DATA));
+      // Check current or previous storage versions to migrate only real user-created clubs
+      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('clubsphere_live_db_v6') || localStorage.getItem('clubsphere_live_db_v5');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const clubs = { ...(parsed.clubs || {}) };
+
+        // Explicitly purge legacy default CHARUSAT clubs
+        delete clubs.tech;
+        delete clubs.cult;
+        delete clubs.sport;
+
+        // Purge any users associated with legacy default clubs
+        const users = (parsed.users || []).filter(u => u.orgId !== 'tech' && u.orgId !== 'cult' && u.orgId !== 'sport');
+
         return {
-          clubs: parsed.clubs || {},
-          users: parsed.users || [],
+          clubs,
+          users,
           platform: parsed.platform || JSON.parse(JSON.stringify(INITIAL_PLATFORM_DATA)),
           auditLogs: parsed.auditLogs || [],
           notifications: parsed.notifications || []
@@ -279,10 +289,10 @@ class MockDatabase {
       console.warn('LocalStorage error, initializing fresh database state', e);
     }
     return {
-      clubs: JSON.parse(JSON.stringify(INITIAL_CLUBS_DATA)),
-      users: JSON.parse(JSON.stringify(INITIAL_USERS_DATA)),
+      clubs: {},
+      users: [],
       platform: JSON.parse(JSON.stringify(INITIAL_PLATFORM_DATA)),
-      auditLogs: JSON.parse(JSON.stringify(INITIAL_AUDIT_LOGS)),
+      auditLogs: [],
       notifications: []
     };
   }
@@ -297,10 +307,10 @@ class MockDatabase {
 
   reset() {
     this.data = {
-      clubs: JSON.parse(JSON.stringify(INITIAL_CLUBS_DATA)),
-      users: JSON.parse(JSON.stringify(INITIAL_USERS_DATA)),
+      clubs: {},
+      users: [],
       platform: JSON.parse(JSON.stringify(INITIAL_PLATFORM_DATA)),
-      auditLogs: JSON.parse(JSON.stringify(INITIAL_AUDIT_LOGS)),
+      auditLogs: [],
       notifications: []
     };
     this.save();
@@ -309,14 +319,9 @@ class MockDatabase {
   getClub(orgId) {
     if (!orgId) throw new Error('Club ID required');
     if (!this.data.clubs[orgId]) {
-      if (INITIAL_CLUBS_DATA[orgId]) {
-        this.data.clubs[orgId] = JSON.parse(JSON.stringify(INITIAL_CLUBS_DATA[orgId]));
-        this.save();
-      } else {
-        const first = Object.keys(this.data.clubs)[0];
-        if (first) return this.data.clubs[first];
-        throw new Error(`Club "${orgId}" not found or unauthorized (Tenant Isolation Rule).`);
-      }
+      const first = Object.keys(this.data.clubs)[0];
+      if (first) return this.data.clubs[first];
+      throw new Error(`Club "${orgId}" not found. Please create this club first in the Super Admin portal.`);
     }
     const club = this.data.clubs[orgId];
     // Safeguard all relational collections against undefined
@@ -348,7 +353,7 @@ class MockDatabase {
   findUserByClubEmail(email) {
     if (!this.data.users) this.data.users = [];
     const clean = (email || '').trim().toLowerCase();
-    return this.data.users.find(u => u.clubEmail.toLowerCase() === clean);
+    return this.data.users.find(u => u.clubEmail?.toLowerCase() === clean);
   }
 
   findUserByPersonalEmail(email, orgId = null) {
