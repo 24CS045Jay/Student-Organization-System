@@ -10,6 +10,8 @@ import { notificationService } from './services/notificationService';
 import { LandingPageView } from './features/landing/LandingPageView';
 import { AuthView } from './features/auth/AuthView';
 import { SuperAdminClubCreationView } from './features/platform/SuperAdminClubCreationView';
+import { PasswordUpdateModal } from './components/layout/PasswordUpdateModal';
+import { supabaseSync } from './services/supabaseService';
 
 // Features
 import { MyMembershipView } from './features/membership/MyMembershipView';
@@ -75,9 +77,19 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('club-dash');
   const [isAICopilotDrawerOpen, setIsAICopilotDrawerOpen] = useState(false);
   const [isNotifsOpen, setIsNotifsOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [dataVersion, setDataVersion] = useState(0);
   const [notifsList, setNotifsList] = useState([]);
+
+  // Cloud Supabase initial hydration
+  useEffect(() => {
+    supabaseSync.fetchCloudDatabase().then((cloudData) => {
+      if (cloudData && cloudData.clubs && cloudData.clubs.length > 0) {
+        console.info('[Supabase Live Database] Active cloud records detected.');
+      }
+    }).catch(console.warn);
+  }, []);
 
   // Subscribe to notifications when logged in
   useEffect(() => {
@@ -155,6 +167,12 @@ export default function App() {
     setActiveTab(homeTabMap[newSession.role] || 'club-dash');
     setViewState('app');
     handleToast(`✨ Welcome to ${dbInstance.data.clubs[newSession.orgId]?.name || 'ClubSphere'}!`);
+
+    // Check if user has not updated initial password yet -> trigger password update modal
+    const userInDb = dbInstance.findUserByClubEmail(newSession.email);
+    if (!userInDb || userInDb.passwordChanged === false || userInDb.password === '12345678') {
+      setTimeout(() => setIsPasswordModalOpen(true), 600);
+    }
   };
 
   const handleLogout = () => {
@@ -389,6 +407,14 @@ export default function App() {
           ))}
         </div>
       </Drawer>
+
+      {/* First-time Login Password Update Popup Modal */}
+      <PasswordUpdateModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        session={session}
+        onToast={handleToast}
+      />
 
       {/* Floating Toast Alert */}
       {toastMessage && (
