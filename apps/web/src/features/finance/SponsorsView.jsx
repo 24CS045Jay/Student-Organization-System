@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/ui/index';
 import { clubService } from '../../services/clubService';
 import { inr } from '../../mock/db';
-import { Building, Plus, FileText, CheckCircle2, Award } from 'lucide-react';
+import { Building, Plus, Trash2, CheckCircle2, Award } from 'lucide-react';
 
 export const SponsorsView = ({ session, activeClub, onDataChange, onToast }) => {
   const [isAddSponsorOpen, setIsAddSponsorOpen] = useState(false);
@@ -10,29 +10,50 @@ export const SponsorsView = ({ session, activeClub, onDataChange, onToast }) => 
     company: '',
     tier: 'Gold Sponsor',
     amount: 30000,
-    contact: 'partnerships@company.com'
+    contact: ''
   });
 
   const club = clubService.getClub(activeClub.id);
   const sponsors = club.sponsors || [];
 
+  const handleOpenAdd = () => {
+    setSponsorForm({
+      company: '',
+      tier: 'Gold Sponsor',
+      amount: 30000,
+      contact: ''
+    });
+    setIsAddSponsorOpen(true);
+  };
+
   const handleAddSponsor = (e) => {
     e.preventDefault();
-    if (!sponsorForm.company) return;
+    if (!sponsorForm.company.trim()) return;
     try {
       clubService.addSponsor(
         activeClub.id,
         {
           company: sponsorForm.company,
           tier: sponsorForm.tier,
-          amount: Number(sponsorForm.amount),
-          contact: sponsorForm.contact,
+          amount: Number(sponsorForm.amount) || 0,
+          contact: sponsorForm.contact || 'partnerships@company.com',
           perks: ['Logo on banners', 'Keynote address slot', 'Booth in arena']
         },
         session
       );
       setIsAddSponsorOpen(false);
       if (onToast) onToast(`🏢 Confirmed sponsorship with ${sponsorForm.company}!`);
+      if (onDataChange) onDataChange();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteSponsor = (sp) => {
+    if (!window.confirm(`Delete sponsor agreement with ${sp.company || sp.name}?`)) return;
+    try {
+      clubService.deleteSponsor(activeClub.id, sp.id, session);
+      if (onToast) onToast(`🗑️ Removed sponsor agreement with ${sp.company || sp.name}`);
       if (onDataChange) onDataChange();
     } catch (err) {
       alert(err.message);
@@ -50,16 +71,48 @@ export const SponsorsView = ({ session, activeClub, onDataChange, onToast }) => 
             Manage corporate sponsorships, branding commitments, and deliverables for {activeClub.name}.
           </p>
         </div>
-        <Button variant="yellow" size="sm" onClick={() => setIsAddSponsorOpen(true)} icon={Plus}>
+        <Button variant="yellow" size="sm" onClick={handleOpenAdd} icon={Plus}>
           Add Sponsor Agreement
         </Button>
       </div>
 
       {sponsors.length === 0 ? (
         <Card title="No Corporate Sponsors Yet" headerBg="var(--accent-yellow)">
-          <div style={{ textAlign: 'center', padding: '30px 0' }}>
-            <div style={{ fontSize: '42px', marginBottom: '8px' }}>🏢</div>
-            <h3 style={{ fontSize: '18px', fontWeight: 900 }}>No sponsor packages active</h3>
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '48px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '12px'
+            }}
+          >
+            <div
+              style={{
+                fontSize: '44px',
+                width: '80px',
+                height: '80px',
+                borderRadius: '20px',
+                backgroundColor: '#FEF9C3',
+                border: '3px solid #000',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '4px 4px 0px #000'
+              }}
+            >
+              🏢
+            </div>
+            <h3 style={{ fontSize: '18px', fontWeight: 900, margin: '4px 0' }}>
+              No Active Sponsor Agreements
+            </h3>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)', maxWidth: '420px' }}>
+              Add corporate industry partners, hackathon title sponsors, and event stall packages to monetize club initiatives.
+            </p>
+            <Button variant="yellow" onClick={handleOpenAdd} icon={Plus}>
+              Register First Sponsor Agreement
+            </Button>
           </div>
         </Card>
       ) : (
@@ -67,9 +120,20 @@ export const SponsorsView = ({ session, activeClub, onDataChange, onToast }) => 
           {sponsors.map((sp) => (
             <Card
               key={sp.id}
-              title={sp.company}
+              title={sp.company || sp.name}
               headerBg={sp.tier.includes('Platinum') ? 'var(--accent-yellow)' : 'var(--accent-purple)'}
-              headerAction={<Badge variant="green">{sp.status}</Badge>}
+              headerAction={
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <Badge variant="green">{sp.status}</Badge>
+                  <Button
+                    variant="white"
+                    size="sm"
+                    onClick={() => handleDeleteSponsor(sp)}
+                    icon={Trash2}
+                    title="Delete Sponsor"
+                  />
+                </div>
+              }
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }}>
                 <Badge variant="blue">{sp.tier}</Badge>
@@ -131,12 +195,14 @@ export const SponsorsView = ({ session, activeClub, onDataChange, onToast }) => 
                 <option value="Platinum Sponsor">Platinum Sponsor (₹50k+)</option>
                 <option value="Gold Sponsor">Gold Sponsor (₹30k)</option>
                 <option value="Silver Sponsor">Silver Sponsor (₹15k)</option>
+                <option value="Bronze Partner">Bronze Partner (₹5k)</option>
               </select>
             </div>
             <div>
               <label className="neo-label">Sponsorship Value (₹)</label>
               <input
                 type="number"
+                min="0"
                 value={sponsorForm.amount}
                 onChange={(e) => setSponsorForm({ ...sponsorForm, amount: e.target.value })}
                 className="neo-input"
@@ -145,10 +211,10 @@ export const SponsorsView = ({ session, activeClub, onDataChange, onToast }) => 
           </div>
 
           <div>
-            <label className="neo-label">Contact Email</label>
+            <label className="neo-label">Contact Email / Phone</label>
             <input
-              type="email"
-              placeholder="partnerships@redbull.com"
+              type="text"
+              placeholder="partnerships@company.com"
               value={sponsorForm.contact}
               onChange={(e) => setSponsorForm({ ...sponsorForm, contact: e.target.value })}
               className="neo-input"

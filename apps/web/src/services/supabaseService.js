@@ -265,7 +265,41 @@ export const supabaseSync = {
     }
   },
 
-  // --- 10. INITIAL CLOUD HYDRATION ---
+  // --- 10. MERCHANDISE & PRODUCTS (Database Sync) ---
+  syncProduct: async (clubId, product) => {
+    if (!supabase) return;
+    try {
+      const payload = {
+        id: product.id,
+        club_id: clubId,
+        name: product.name,
+        description: product.description || '',
+        category: product.category || 'Apparel',
+        image: product.image || '👕',
+        member_price: Number(product.memberPrice) || 0,
+        non_member_price: Number(product.nonMemberPrice) || 0,
+        cost: Number(product.cost) || 0,
+        stock: product.stock || {},
+        total_sold: Number(product.totalSold) || 0,
+        status: product.status || 'In Stock'
+      };
+
+      await supabase.from('products').upsert(payload, { onConflict: 'id' });
+    } catch (err) {
+      console.warn('[Supabase Sync] product sync note:', err.message);
+    }
+  },
+
+  deleteProduct: async (clubId, productId) => {
+    if (!supabase) return;
+    try {
+      await supabase.from('products').delete().eq('id', productId);
+    } catch (err) {
+      console.warn('[Supabase Sync] product delete note:', err.message);
+    }
+  },
+
+  // --- 11. INITIAL CLOUD HYDRATION ---
   fetchCloudDatabase: async () => {
     if (!supabase) return null;
     try {
