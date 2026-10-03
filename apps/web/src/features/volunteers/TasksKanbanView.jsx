@@ -12,9 +12,9 @@ export const TasksKanbanView = ({ session, activeClub, onDataChange, onToast }) 
 
   const tasks = clubService.getTasks(activeClub.id);
 
-  const pendingTasks = tasks.filter(t => t.status === 'Pending');
-  const inProgressTasks = tasks.filter(t => t.status === 'In Progress');
-  const doneTasks = tasks.filter(t => t.status === 'Done');
+  const pendingTasks = tasks.filter(t => t.status === 'Pending' || t.stage === 'To Do');
+  const inProgressTasks = tasks.filter(t => t.status === 'In Progress' || t.stage === 'In Progress');
+  const doneTasks = tasks.filter(t => t.status === 'Done' || t.stage === 'Done');
 
   const handleMoveTask = (taskId, newStatus, newProgress) => {
     try {

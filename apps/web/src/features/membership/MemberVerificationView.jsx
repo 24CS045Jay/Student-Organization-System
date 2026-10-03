@@ -34,18 +34,72 @@ export const MemberVerificationView = ({ session, activeClub, onToast }) => {
       img.onload = () => {
         try {
           const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const decoded = decodeInAppQR(imageData);
 
-          if (decoded && decoded.code) {
-            setQueryId(decoded.code);
-            handleVerify(decoded.code);
+          const processWithJsQR = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let decoded = decodeInAppQR(imageData);
+
+            if (!decoded && (img.width > 700 || img.height > 700)) {
+              const scale = Math.min(600 / img.width, 600 / img.height);
+              canvas.width = Math.round(img.width * scale);
+              canvas.height = Math.round(img.height * scale);
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              const scaledData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              decoded = decodeInAppQR(scaledData);
+            }
+
+            if (!decoded) {
+              const scale = Math.min(400 / img.width, 400 / img.height);
+              canvas.width = Math.round(img.width * scale);
+              canvas.height = Math.round(img.height * scale);
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              const scaledData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              decoded = decodeInAppQR(scaledData);
+            }
+
+            if (decoded && decoded.code) {
+              onCodeFound(decoded.code);
+            } else {
+              alert('Could not decode QR code from this image. Please ensure the QR is clear and well lit.');
+            }
+          };
+
+          const onCodeFound = (rawCode) => {
+            let cleanCode = (rawCode || '').trim();
+            if (cleanCode.includes('?') && (cleanCode.startsWith('http://') || cleanCode.startsWith('https://'))) {
+              try {
+                const u = new URL(cleanCode);
+                cleanCode = u.searchParams.get('verify') || u.searchParams.get('ticket') || u.searchParams.get('code') || u.searchParams.get('id') || cleanCode;
+              } catch (e) {}
+            }
+            cleanCode = cleanCode
+              .replace(/^CLUBSPHERE:(PASS|TICKET|MEMBER|CERT):/i, '')
+              .replace(/^CS-APP:\/\/[^/]+\//i, '')
+              .trim();
+            setQueryId(cleanCode);
+            handleVerify(cleanCode);
+          };
+
+          if ('BarcodeDetector' in window) {
+            try {
+              const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+              detector.detect(img).then(barcodes => {
+                if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                  onCodeFound(barcodes[0].rawValue);
+                } else {
+                  processWithJsQR();
+                }
+              }).catch(() => processWithJsQR());
+              return;
+            } catch (e) {
+              processWithJsQR();
+            }
           } else {
-            alert('Could not decode QR code from this image. Please ensure the QR is clear and well lit.');
+            processWithJsQR();
           }
         } catch (err) {
           alert('Error processing image: ' + err.message);
@@ -54,6 +108,7 @@ export const MemberVerificationView = ({ session, activeClub, onToast }) => {
       img.src = event.target.result;
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   return (

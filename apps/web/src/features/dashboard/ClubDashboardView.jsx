@@ -24,9 +24,17 @@ export const ClubDashboardView = ({ session, activeClub, onNavigate }) => {
   const tasks = club.tasks || [];
   const merchandise = club.merchandise || [];
 
+  const getStockCount = (stock) => {
+    if (typeof stock === 'number') return stock;
+    if (typeof stock === 'object' && stock !== null) {
+      return Object.values(stock).reduce((a, b) => a + (Number(b) || 0), 0);
+    }
+    return 0;
+  };
+
   const activeMembers = members.filter(m => m.status === 'Active').length;
-  const pendingTasks = tasks.filter(t => t.status === 'Pending').length;
-  const lowStockItems = merchandise.filter(m => Object.values(m.stock).reduce((a, b) => a + b, 0) < 15);
+  const pendingTasks = tasks.filter(t => t.status === 'Pending' || t.stage === 'To Do').length;
+  const lowStockItems = merchandise.filter(m => getStockCount(m.stock) < 15);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

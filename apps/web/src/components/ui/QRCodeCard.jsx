@@ -1,13 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge, Button } from './index';
 import { Check, Copy, QrCode, ShieldCheck, Sparkles, Lock } from 'lucide-react';
-import { generateNeoMatrix } from '../../services/neoMatrixService.js';
+import QRCodeLib from 'qrcode';
 
-// Proprietary ClubSphere Neo-Matrix 2D Barcode (In-App Only)
+// Universal ClubSphere Verified QR Code Pass
 export const NeoQRCode = ({ code = 'TC-001', size = 150, color = '#121212' }) => {
-  const gridSize = 11;
-  const matrix = generateNeoMatrix(code, gridSize);
-  const cellSize = size / gridSize;
+  const [dataUrl, setDataUrl] = useState('');
+
+  useEffect(() => {
+    let isCurrent = true;
+    const clean = String(code || 'TC-001').trim();
+    // Universal verification payload that works on both smartphone camera and in-app scanner
+    const payload = (clean.startsWith('http://') || clean.startsWith('https://'))
+      ? clean
+      : `https://clubsphere-campus-os.vercel.app/?verify=${encodeURIComponent(clean)}`;
+
+    QRCodeLib.toDataURL(payload, {
+      width: Math.max(size * 2, 320),
+      margin: 2,
+      errorCorrectionLevel: 'M',
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    }).then(url => {
+      if (isCurrent) setDataUrl(url);
+    }).catch(err => {
+      console.warn('QR gen error:', err);
+    });
+
+    return () => { isCurrent = false; };
+  }, [code, size, color]);
 
   return (
     <div
@@ -24,38 +47,43 @@ export const NeoQRCode = ({ code = 'TC-001', size = 150, color = '#121212' }) =>
         position: 'relative'
       }}
     >
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        style={{ display: 'block', backgroundColor: '#FFFFFF' }}
-      >
-        <rect width={size} height={size} fill="#FFFFFF" rx={8} />
-        {matrix.map((row, rIdx) =>
-          row.map((cell, cIdx) => {
-            if (!cell) return null;
-            return (
-              <rect
-                key={`${rIdx}-${cIdx}`}
-                x={cIdx * cellSize}
-                y={rIdx * cellSize}
-                width={cellSize - 0.9}
-                height={cellSize - 0.9}
-                rx={cellSize > 12 ? 2.5 : 1.5}
-                fill={color}
-              />
-            );
-          })
-        )}
-      </svg>
+      {dataUrl ? (
+        <img
+          src={dataUrl}
+          alt={`QR Code for ${code}`}
+          width={size}
+          height={size}
+          style={{
+            display: 'block',
+            width: `${size}px`,
+            height: `${size}px`,
+            borderRadius: '6px',
+            objectFit: 'contain'
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: `${size}px`,
+            height: `${size}px`,
+            backgroundColor: '#F4F4F5',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '6px'
+          }}
+        >
+          <span style={{ fontSize: '11px', fontWeight: 800, color: '#71717A' }}>Generating Pass...</span>
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-        <Lock size={10} color="#71717A" />
-        <span style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: '12px', letterSpacing: '0.08em', color: '#121212' }}>
+        <Lock size={11} color="#71717A" />
+        <span style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: '13px', letterSpacing: '0.08em', color: '#121212' }}>
           {code}
         </span>
       </div>
-      <span style={{ fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', color: '#999', letterSpacing: '0.05em' }}>
-        ClubSphere Secure Pass
+      <span style={{ fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', color: '#71717A', letterSpacing: '0.05em' }}>
+        ClubSphere Verified Pass
       </span>
     </div>
   );

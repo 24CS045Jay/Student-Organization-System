@@ -11,6 +11,7 @@ import { LandingPageView } from './features/landing/LandingPageView';
 import { AuthView } from './features/auth/AuthView';
 import { SuperAdminClubCreationView } from './features/platform/SuperAdminClubCreationView';
 import { PasswordUpdateModal } from './components/layout/PasswordUpdateModal';
+import { QuickLoginModal } from './components/layout/QuickLoginModal';
 import { supabaseSync } from './services/supabaseService';
 
 // Features
@@ -52,9 +53,19 @@ import { ClubDashboardView } from './features/dashboard/ClubDashboardView';
 
 import { clubService } from './services/clubService';
 import { dbInstance } from './mock/db';
-import { Drawer } from './components/ui/index';
+import { Drawer, Modal, Badge, Button } from './components/ui/index';
 
 export default function App() {
+  // Public Pass Verification State (triggered if URL contains ?verify=...)
+  const [publicVerifiedPass, setPublicVerifiedPass] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const v = p.get('verify') || p.get('ticket') || p.get('pass');
+      if (v) return clubService.lookupPublicPass(v);
+    } catch (e) {}
+    return null;
+  });
+
   // Session State (Stored in localStorage or null for landing page)
   const [session, setSession] = useState(() => {
     try {
@@ -107,6 +118,7 @@ export default function App() {
   const [isAICopilotDrawerOpen, setIsAICopilotDrawerOpen] = useState(false);
   const [isNotifsOpen, setIsNotifsOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isQuickLoginOpen, setIsQuickLoginOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [dataVersion, setDataVersion] = useState(0);
   const [notifsList, setNotifsList] = useState([]);
@@ -249,17 +261,26 @@ export default function App() {
     }
 
     return (
-      <LandingPageView
-        onLoginClick={() => {
-          setAuthInitialMode('login');
-          setViewState('auth');
-        }}
-        onRegisterClick={() => {
-          setAuthInitialMode('register');
-          setViewState('auth');
-        }}
-        onSuperAdminClick={() => setViewState('super-admin-club-creation')}
-      />
+      <>
+        <LandingPageView
+          onLoginClick={() => {
+            setAuthInitialMode('login');
+            setViewState('auth');
+          }}
+          onRegisterClick={() => {
+            setAuthInitialMode('register');
+            setViewState('auth');
+          }}
+          onSuperAdminClick={() => setViewState('super-admin-club-creation')}
+          onQuickRoleClick={() => setIsQuickLoginOpen(true)}
+        />
+        <QuickLoginModal
+          isOpen={isQuickLoginOpen}
+          onClose={() => setIsQuickLoginOpen(false)}
+          currentSession={session || {}}
+          onSelectRoleAndClub={handleRoleAndClubSelect}
+        />
+      </>
     );
   }
 
@@ -390,6 +411,7 @@ export default function App() {
         onToggleAICopilot={() => setIsAICopilotDrawerOpen(true)}
         unreadNotifsCount={notifsList.filter((n) => n.unread).length}
         onOpenNotifs={() => setIsNotifsOpen(true)}
+        onOpenQuickLogin={() => setIsQuickLoginOpen(true)}
         onLogout={handleLogout}
       />
 
@@ -453,6 +475,14 @@ export default function App() {
         onToast={handleToast}
       />
 
+      {/* Quick Role & Persona Switcher */}
+      <QuickLoginModal
+        isOpen={isQuickLoginOpen}
+        onClose={() => setIsQuickLoginOpen(false)}
+        currentSession={session || {}}
+        onSelectRoleAndClub={handleRoleAndClubSelect}
+      />
+
       {/* Floating Toast Alert */}
       {toastMessage && (
         <div
@@ -490,6 +520,92 @@ export default function App() {
             ✕
           </button>
         </div>
+      )}
+
+      {/* Public Scan Verification Modal (e.g. from Smartphone Camera scan) */}
+      {publicVerifiedPass && (
+        <Modal
+          isOpen={Boolean(publicVerifiedPass)}
+          onClose={() => {
+            setPublicVerifiedPass(null);
+            try {
+              window.history.replaceState({}, '', window.location.pathname);
+            } catch (e) {}
+          }}
+          title="⚡ Verified Digital Pass"
+          headerColor="var(--accent-green)"
+          maxWidth="480px"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '42px', marginBottom: '8px' }}>
+                {publicVerifiedPass.status === 'NOT_FOUND' ? '❓' : '✅'}
+              </div>
+              <Badge variant={publicVerifiedPass.status === 'NOT_FOUND' ? 'pink' : 'green'}>
+                {publicVerifiedPass.status === 'NOT_FOUND' ? 'Unrecognized Pass' : 'Cryptographically Verified'}
+              </Badge>
+              <h2 style={{ fontSize: '20px', fontWeight: 900, margin: '10px 0 4px' }}>
+                {publicVerifiedPass.title || 'ClubSphere Pass'}
+              </h2>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)' }}>
+                {publicVerifiedPass.club?.name || 'ClubSphere Campus Network'}
+              </div>
+            </div>
+
+            {publicVerifiedPass.status !== 'NOT_FOUND' ? (
+              <div
+                style={{
+                  backgroundColor: '#F4F4F5',
+                  border: '2.5px solid #121212',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  fontSize: '13px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--ink-muted)' }}>Attendee / Member:</span>
+                  <span style={{ fontWeight: 900 }}>{publicVerifiedPass.name}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--ink-muted)' }}>Pass Ref ID:</span>
+                  <span style={{ fontWeight: 900, fontFamily: 'monospace' }}>{publicVerifiedPass.code}</span>
+                </div>
+                {publicVerifiedPass.seat && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontWeight: 700, color: 'var(--ink-muted)' }}>Access / Seat:</span>
+                    <span style={{ fontWeight: 900 }}>{publicVerifiedPass.seat}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--ink-muted)' }}>Entry Status:</span>
+                  <Badge variant={publicVerifiedPass.status === 'Attended' ? 'yellow' : 'green'}>
+                    {publicVerifiedPass.status || 'Active'}
+                  </Badge>
+                </div>
+              </div>
+            ) : (
+              <p style={{ textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#EF4444' }}>
+                {publicVerifiedPass.message}
+              </p>
+            )}
+
+            <Button
+              variant="black"
+              style={{ width: '100%' }}
+              onClick={() => {
+                setPublicVerifiedPass(null);
+                try {
+                  window.history.replaceState({}, '', window.location.pathname);
+                } catch (e) {}
+              }}
+            >
+              Continue to ClubSphere
+            </Button>
+          </div>
+        </Modal>
       )}
     </div>
   );

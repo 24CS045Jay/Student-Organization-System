@@ -3,73 +3,80 @@ import { Modal, Button, Badge } from '../ui/index';
 import { UserCheck, Shield, Key, Sparkles, Building, CheckCircle2 } from 'lucide-react';
 import { authService } from '../../services/authService';
 
+import { dbInstance } from '../../mock/db';
+
 export const QuickLoginModal = ({
   isOpen,
   onClose,
   currentSession,
   onSelectRoleAndClub
 }) => {
-  const [selectedClub, setSelectedClub] = useState(currentSession.orgId || 'tech');
+  const allClubs = Object.values(dbInstance.data.clubs || {});
+  const clubs = allClubs.length > 0 ? allClubs : [
+    { id: 'tech', name: 'CHARUSAT Tech Club', prefix: 'TC', color: '#4CC9F0', emailDomain: '@tech.campus.edu' }
+  ];
+
+  const [selectedClub, setSelectedClub] = useState(() => currentSession?.orgId && currentSession.orgId !== 'platform' ? currentSession.orgId : (clubs[0]?.id || 'tech'));
   const [customEmail, setCustomEmail] = useState('');
   const [customPassword, setCustomPassword] = useState('');
 
-  const clubs = [
-    { id: 'tech', name: 'CHARUSAT Tech Club', prefix: 'TC', color: '#4CC9F0' },
-    { id: 'cult', name: 'CHARUSAT Cultural Club', prefix: 'CC', color: '#FF70A6' },
-    { id: 'sport', name: 'CHARUSAT Sports Club', prefix: 'SC', color: '#70E4A8' }
-  ];
+  const getDomain = (cId) => {
+    const cl = dbInstance.data.clubs[cId] || clubs[0];
+    const d = cl?.emailDomain || `@${cId}.campus.edu`;
+    return d.startsWith('@') ? d : `@${d}`;
+  };
 
   const demoRoles = [
     {
       role: 'student',
       title: 'Student / Member',
       scope: 'My Membership, Events, Merch Shop & Tickets',
-      email: (c) => `student@${c}.demo`,
+      email: (c) => `student${getDomain(c)}`,
       homeTab: 'my-membership',
       badge: 'blue',
-      name: (c) => (c === 'tech' ? 'Aarav Shah' : c === 'cult' ? 'Meera Joshi' : 'Vikram Singh')
+      name: (c) => `Student Member (${dbInstance.data.clubs[c]?.short || c.toUpperCase()})`
     },
     {
       role: 'volunteer',
       title: 'Volunteer',
       scope: 'Tasks Kanban, Hours, Expenses & Leaderboard',
-      email: (c) => `volunteer@${c}.demo`,
+      email: (c) => `volunteer${getDomain(c)}`,
       homeTab: 'tasks-kanban',
       badge: 'purple',
-      name: (c) => (c === 'tech' ? 'Jay Barot' : c === 'cult' ? 'Kabir Rao' : 'Dev Patel')
+      name: (c) => `Volunteer (${dbInstance.data.clubs[c]?.short || c.toUpperCase()})`
     },
     {
       role: 'event_manager',
       title: 'Event Manager',
       scope: 'Events CRUD, QR Check-in & Attendance Stats',
-      email: (c) => `events@${c}.demo`,
+      email: (c) => `manager${getDomain(c)}`,
       homeTab: 'events-list',
       badge: 'pink',
-      name: (c) => `Events Lead (${c.toUpperCase()})`
+      name: (c) => `Event Manager (${dbInstance.data.clubs[c]?.short || c.toUpperCase()})`
     },
     {
       role: 'treasurer',
       title: 'Treasurer',
       scope: 'Financial Ledger, Reimbursements & Budget',
-      email: (c) => `treasurer@${c}.demo`,
+      email: (c) => `treasurer${getDomain(c)}`,
       homeTab: 'financial-dash',
       badge: 'green',
-      name: (c) => `Treasurer (${c.toUpperCase()})`
+      name: (c) => `Treasurer (${dbInstance.data.clubs[c]?.short || c.toUpperCase()})`
     },
     {
       role: 'admin',
       title: 'Club Admin',
       scope: 'Complete Club Management & AI Copilot',
-      email: (c) => `admin@${c}.demo`,
+      email: (c) => `admin${getDomain(c)}`,
       homeTab: 'club-dash',
       badge: 'yellow',
-      name: (c) => `Club Admin (${c.toUpperCase()})`
+      name: (c) => `Club President (${dbInstance.data.clubs[c]?.short || c.toUpperCase()})`
     },
     {
       role: 'super_admin',
       title: 'Platform Super Admin',
       scope: 'Multi-Tenant SaaS, Organizations & Plans',
-      email: () => 'root@clubsphere.demo',
+      email: () => 'super_admin@clubsphere.demo',
       homeTab: 'saas-orgs',
       badge: 'black',
       name: () => 'Global Platform Admin'
@@ -138,7 +145,7 @@ export const QuickLoginModal = ({
         {/* Club Selection Pills */}
         <div style={{ marginBottom: '20px' }}>
           <label className="neo-label">Select Club Organization:</label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
             {clubs.map((c) => (
               <button
                 key={c.id}
