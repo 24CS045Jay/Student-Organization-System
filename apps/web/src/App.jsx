@@ -59,7 +59,14 @@ export default function App() {
   const [session, setSession] = useState(() => {
     try {
       const saved = localStorage.getItem('clubsphere_session');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.orgId === 'tech' || parsed?.orgId === 'cult' || parsed?.orgId === 'sport') {
+          localStorage.removeItem('clubsphere_session');
+          return null;
+        }
+        return parsed;
+      }
     } catch (e) {}
     return null;
   });
@@ -68,7 +75,12 @@ export default function App() {
   const [viewState, setViewState] = useState(() => {
     try {
       const saved = localStorage.getItem('clubsphere_session');
-      if (saved) return 'app';
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.orgId !== 'tech' && parsed?.orgId !== 'cult' && parsed?.orgId !== 'sport') {
+          return 'app';
+        }
+      }
     } catch (e) {}
     return 'landing';
   });
@@ -210,6 +222,7 @@ export default function App() {
           initialMode={authInitialMode}
           onAuthSuccess={handleAuthSuccess}
           onBackToLanding={() => setViewState('landing')}
+          onSuperAdminClick={() => setViewState('super-admin-club-creation')}
         />
       );
     }
@@ -224,7 +237,6 @@ export default function App() {
           setAuthInitialMode('register');
           setViewState('auth');
         }}
-        onDemoSelect={handleRoleAndClubSelect}
         onSuperAdminClick={() => setViewState('super-admin-club-creation')}
       />
     );

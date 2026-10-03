@@ -5,167 +5,11 @@
 
 export const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 
-// Updated storage key to ensure 100% sync with volunteers and reimbursements
-const STORAGE_KEY = 'clubsphere_live_db_v6';
+// Fresh storage key ensuring zero default mock clubs or demo credentials
+const STORAGE_KEY = 'clubsphere_live_db_v7';
 
-// Fresh initial database state with baseline campus organizations
-export const INITIAL_CLUBS_DATA = {
-  tech: {
-    id: 'tech',
-    name: 'CHARUSAT Tech Club',
-    short: 'Tech Club',
-    prefix: 'TC',
-    category: 'Technical',
-    color: '#FFE853',
-    accentColor: '#FFE853',
-    emailDomain: '@tech.campus.edu',
-    members: [],
-    events: [],
-    merchandise: [],
-    tasks: [],
-    orders: [],
-    tickets: [],
-    fundraisers: [],
-    sponsors: [],
-    donations: [],
-    certificates: [],
-    feedback: [],
-    volunteers: [
-      {
-        id: 'VOL-TC-01',
-        name: 'Jay Barot',
-        email: 'jay.volunteer@tech.campus.edu',
-        phone: '+91 98250 11223',
-        roleTitle: 'Technical Operations Volunteer',
-        hours: 56,
-        service_hours: 56,
-        badge: 'Silver Contributor (50h+)',
-        rating: 4.9,
-        skills: ['Event Logistics', 'Gate Registration', 'Stage AV'],
-        activeTasks: 3
-      },
-      {
-        id: 'VOL-TC-02',
-        name: 'Param Joshi',
-        email: 'param.v@tech.campus.edu',
-        phone: '+91 98765 43210',
-        roleTitle: 'Event Logistics Volunteer',
-        hours: 32,
-        service_hours: 32,
-        badge: 'Bronze Contributor (25h+)',
-        rating: 4.8,
-        skills: ['Audio/Visual', 'Equipment Setup'],
-        activeTasks: 1
-      }
-    ],
-    reimbursements: [
-      {
-        id: 'REIMB-TC-101',
-        volunteerName: 'Jay Barot',
-        volunteerEmail: 'jay.volunteer@tech.campus.edu',
-        category: 'Supplies & Printing',
-        event: 'CHARUSAT 24h Hackathon 2026',
-        amount: 1800,
-        date: '2026-10-02',
-        description: 'Lanyards, badge printing, and extension cords',
-        receiptUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400',
-        status: 'Manager Approved',
-        approver: 'Event Manager',
-        notes: 'Official GST invoice verified'
-      }
-    ],
-    announcements: [
-      {
-        id: 'ANN-TC-01',
-        title: 'Volunteer Briefing for CHARUSAT Hackathon 2026',
-        audience: 'All Members & Students',
-        channels: ['In-app', 'Email'],
-        content: 'All volunteers please assemble at Central Computing Lab at 8:30 AM this Saturday.',
-        date: '2026-10-02',
-        author: 'Club Admin',
-        reach: 120
-      }
-    ],
-    membershipTypes: [
-      { id: '10000000-0000-0000-0000-000000000001', name: 'Standard Member', price: 499, duration_months: 12, benefits: 'Workshops & Hackathons' },
-      { id: '10000000-0000-0000-0000-000000000002', name: 'Premium Member', price: 999, duration_months: 12, benefits: 'VIP pass, swag & mentor 1-on-1' }
-    ],
-    finance: { totalIncome: 0, totalExpenses: 0, netBalance: 0, incomeSources: [], expensesList: [] },
-    stats: { membersCount: 0 }
-  },
-  cult: {
-    id: 'cult',
-    name: 'CHARUSAT Cultural Society',
-    short: 'Cultural Society',
-    prefix: 'CC',
-    category: 'Cultural',
-    color: '#FF70A6',
-    accentColor: '#FF70A6',
-    emailDomain: '@cultural.campus.edu',
-    members: [],
-    events: [],
-    merchandise: [],
-    tasks: [],
-    orders: [],
-    tickets: [],
-    fundraisers: [],
-    sponsors: [],
-    donations: [],
-    certificates: [],
-    feedback: [],
-    volunteers: [
-      {
-        id: 'VOL-CC-01',
-        name: 'Diya Patel',
-        email: 'diya.v@cultural.campus.edu',
-        phone: '+91 99123 45678',
-        roleTitle: 'Hospitality Volunteer',
-        hours: 42,
-        service_hours: 42,
-        badge: 'Bronze Contributor (25h+)',
-        rating: 4.95,
-        skills: ['Hospitality', 'Stage Management'],
-        activeTasks: 2
-      }
-    ],
-    reimbursements: [],
-    announcements: [],
-    membershipTypes: [
-      { id: '10000000-0000-0000-0000-000000000003', name: 'Standard Arts Member', price: 499, duration_months: 12, benefits: 'Concerts & Art Exhibitions' }
-    ],
-    finance: { totalIncome: 0, totalExpenses: 0, netBalance: 0, incomeSources: [], expensesList: [] },
-    stats: { membersCount: 0 }
-  },
-  sport: {
-    id: 'sport',
-    name: 'CHARUSAT Sports Council',
-    short: 'Sports Council',
-    prefix: 'SC',
-    category: 'Sports',
-    color: '#70D6FF',
-    accentColor: '#70D6FF',
-    emailDomain: '@sports.campus.edu',
-    members: [],
-    events: [],
-    merchandise: [],
-    tasks: [],
-    orders: [],
-    tickets: [],
-    fundraisers: [],
-    sponsors: [],
-    donations: [],
-    certificates: [],
-    feedback: [],
-    volunteers: [],
-    reimbursements: [],
-    announcements: [],
-    membershipTypes: [
-      { id: '10000000-0000-0000-0000-000000000004', name: 'Sports Athlete Pass', price: 499, duration_months: 12, benefits: 'Tournaments & Team Kit' }
-    ],
-    finance: { totalIncome: 0, totalExpenses: 0, netBalance: 0, incomeSources: [], expensesList: [] },
-    stats: { membersCount: 0 }
-  }
-};
+// Zero default clubs by default - only clubs created by user/super admin exist
+export const INITIAL_CLUBS_DATA = {};
 
 // Fresh initial users table
 export const INITIAL_USERS_DATA = [];
@@ -205,15 +49,23 @@ class MockDatabase {
 
   load() {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const clubs = (parsed.clubs && Object.keys(parsed.clubs).length > 0)
-          ? parsed.clubs
-          : JSON.parse(JSON.stringify(INITIAL_CLUBS_DATA));
+      // Check current or previous storage versions to migrate only real user-created clubs
+      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('clubsphere_live_db_v6') || localStorage.getItem('clubsphere_live_db_v5');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const clubs = { ...(parsed.clubs || {}) };
+
+        // Explicitly purge legacy default CHARUSAT clubs
+        delete clubs.tech;
+        delete clubs.cult;
+        delete clubs.sport;
+
+        // Purge any users associated with legacy default clubs
+        const users = (parsed.users || []).filter(u => u.orgId !== 'tech' && u.orgId !== 'cult' && u.orgId !== 'sport');
+
         return {
-          clubs: parsed.clubs || {},
-          users: parsed.users || [],
+          clubs,
+          users,
           platform: parsed.platform || JSON.parse(JSON.stringify(INITIAL_PLATFORM_DATA)),
           auditLogs: parsed.auditLogs || [],
           notifications: parsed.notifications || []
@@ -223,10 +75,10 @@ class MockDatabase {
       console.warn('LocalStorage error, initializing fresh database state', e);
     }
     return {
-      clubs: JSON.parse(JSON.stringify(INITIAL_CLUBS_DATA)),
-      users: JSON.parse(JSON.stringify(INITIAL_USERS_DATA)),
+      clubs: {},
+      users: [],
       platform: JSON.parse(JSON.stringify(INITIAL_PLATFORM_DATA)),
-      auditLogs: JSON.parse(JSON.stringify(INITIAL_AUDIT_LOGS)),
+      auditLogs: [],
       notifications: []
     };
   }
@@ -241,10 +93,10 @@ class MockDatabase {
 
   reset() {
     this.data = {
-      clubs: JSON.parse(JSON.stringify(INITIAL_CLUBS_DATA)),
-      users: JSON.parse(JSON.stringify(INITIAL_USERS_DATA)),
+      clubs: {},
+      users: [],
       platform: JSON.parse(JSON.stringify(INITIAL_PLATFORM_DATA)),
-      auditLogs: JSON.parse(JSON.stringify(INITIAL_AUDIT_LOGS)),
+      auditLogs: [],
       notifications: []
     };
     this.save();
@@ -253,14 +105,9 @@ class MockDatabase {
   getClub(orgId) {
     if (!orgId) throw new Error('Club ID required');
     if (!this.data.clubs[orgId]) {
-      if (INITIAL_CLUBS_DATA[orgId]) {
-        this.data.clubs[orgId] = JSON.parse(JSON.stringify(INITIAL_CLUBS_DATA[orgId]));
-        this.save();
-      } else {
-        const first = Object.keys(this.data.clubs)[0];
-        if (first) return this.data.clubs[first];
-        throw new Error(`Club "${orgId}" not found or unauthorized (Tenant Isolation Rule).`);
-      }
+      const first = Object.keys(this.data.clubs)[0];
+      if (first) return this.data.clubs[first];
+      throw new Error(`Club "${orgId}" not found. Please create this club first in the Super Admin portal.`);
     }
     const club = this.data.clubs[orgId];
     // Safeguard all relational collections against undefined
@@ -292,7 +139,7 @@ class MockDatabase {
   findUserByClubEmail(email) {
     if (!this.data.users) this.data.users = [];
     const clean = (email || '').trim().toLowerCase();
-    return this.data.users.find(u => u.clubEmail.toLowerCase() === clean);
+    return this.data.users.find(u => u.clubEmail?.toLowerCase() === clean);
   }
 
   findUserByPersonalEmail(email, orgId = null) {
