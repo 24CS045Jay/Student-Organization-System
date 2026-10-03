@@ -143,6 +143,7 @@ export default function App() {
     setSession(newSession);
     const homeTabMap = {
       student: 'my-membership',
+      member: 'my-membership',
       volunteer: 'tasks-kanban',
       event_manager: 'events-list',
       treasurer: 'financial-dash',
@@ -158,13 +159,14 @@ export default function App() {
     setSession(newSession);
     const homeTabMap = {
       student: 'my-membership',
+      member: 'my-membership',
       volunteer: 'tasks-kanban',
       event_manager: 'events-list',
       treasurer: 'financial-dash',
       admin: 'club-dash',
       super_admin: 'saas-orgs'
     };
-    setActiveTab(homeTabMap[newSession.role] || 'club-dash');
+    setActiveTab(homeTabMap[newSession.role] || 'my-membership');
     setViewState('app');
     handleToast(`✨ Welcome to ${dbInstance.data.clubs[newSession.orgId]?.name || 'ClubSphere'}!`);
 
@@ -231,6 +233,7 @@ export default function App() {
   // Role Permissions Mapping for RoleGuard
   const roleAllowedTabs = {
     student: ['my-membership', 'browse-events', 'my-tickets', 'merch-shop', 'my-orders', 'my-certificates', 'announcements-feed', 'feedback'],
+    member: ['my-membership', 'browse-events', 'my-tickets', 'merch-shop', 'my-orders', 'my-certificates', 'announcements-feed', 'feedback'],
     volunteer: ['tasks-kanban', 'volunteer-portal', 'my-reimbursements', 'leaderboard', 'announcements-feed'],
     event_manager: ['events-list', 'qr-checkin', 'attendance', 'event-profit', 'reports-hub', 'feedback', 'announcements-mgmt'],
     treasurer: ['financial-dash', 'income-ledger', 'expenses-ledger', 'reimbursements-mgmt', 'budget-mgmt', 'sponsors', 'donations', 'reports-hub'],
@@ -256,6 +259,7 @@ export default function App() {
           onResetToHome={() => {
             const homeMap = {
               student: 'my-membership',
+              member: 'my-membership',
               volunteer: 'tasks-kanban',
               event_manager: 'events-list',
               treasurer: 'financial-dash',

@@ -5,14 +5,14 @@ import { clubService } from '../../services/clubService';
 import { Ticket, Calendar, MapPin, QrCode, AlertCircle } from 'lucide-react';
 
 export const MyTicketsView = ({ session, activeClub, onToast, onNavigate }) => {
-  const club = clubService.getClub(activeClub.id);
-  const allTickets = club.tickets || [];
+  const club = clubService.getClub(activeClub?.id) || activeClub;
+  const allTickets = club?.tickets || [];
   
   // Show user's tickets (or all for demo/admin)
   const myTickets = allTickets.filter(t => 
-    session.role !== 'student' || 
-    t.email.toLowerCase() === session.email.toLowerCase() ||
-    t.attendeeName.toLowerCase().includes(session.name?.toLowerCase() || 'aarav')
+    session?.role !== 'student' || 
+    t.email?.toLowerCase() === session?.email?.toLowerCase() ||
+    (t.attendeeName && session?.name && t.attendeeName.toLowerCase().includes(session.name.toLowerCase()))
   );
 
   const handleCancelTicket = (ticketId) => {

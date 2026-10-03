@@ -9,13 +9,31 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
   const [renewPlan, setRenewPlan] = useState('Standard');
 
   // Find member record matching current session user
-  const members = clubService.getMembers(activeClub.id);
-  const currentMember = members.find(m => m.email.toLowerCase() === session.email.toLowerCase()) || members[0];
-  const membershipTypes = clubService.getMembershipTypes(activeClub.id);
+  const members = clubService.getMembers(activeClub?.id) || [];
+  const currentMember = members.find(
+    m => m.email?.toLowerCase() === session?.email?.toLowerCase() || 
+         m.personalEmail?.toLowerCase() === session?.email?.toLowerCase()
+  ) || members[0] || {
+    id: `${activeClub?.prefix || 'CLB'}-001`,
+    name: session?.name || 'Club Member',
+    studentId: '24CS001',
+    dept: activeClub?.department || 'Student Affairs',
+    type: 'Standard Member',
+    exp: '2027-10-01',
+    startDate: '2026-01-01',
+    paid: 1,
+    attendanceCount: 0,
+    photo: '🧑‍🎓'
+  };
+
+  const membershipTypes = clubService.getMembershipTypes(activeClub?.id) || [];
+  const clubEvents = clubService.getEvents(activeClub?.id) || [];
 
   const handleRenew = () => {
     try {
-      clubService.renewMember(activeClub.id, currentMember.id, 12, session);
+      if (currentMember?.id) {
+        clubService.renewMember(activeClub.id, currentMember.id, 12, session);
+      }
       setShowRenewModal(false);
       if (onRenewSuccess) onRenewSuccess();
     } catch (e) {
@@ -29,7 +47,7 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
       <div
         className="neo-box"
         style={{
-          background: `linear-gradient(135deg, ${activeClub.color} 0%, #FFFDF9 100%)`,
+          background: `linear-gradient(135deg, ${activeClub?.color || '#FFE853'} 0%, #FFFDF9 100%)`,
           padding: '24px 28px',
           display: 'flex',
           justifyContent: 'space-between',
@@ -62,8 +80,8 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
         <div>
           <DigitalMemberCard
             member={currentMember}
-            clubName={activeClub.name}
-            accentColor={activeClub.color}
+            clubName={activeClub?.name || 'Club'}
+            accentColor={activeClub?.color || 'var(--accent-yellow)'}
             onRenew={() => setShowRenewModal(true)}
           />
 
@@ -72,7 +90,7 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
             <Card title="📜 Membership History Timeline" headerBg="var(--accent-purple)">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {(currentMember?.history || [
-                  { date: currentMember?.startDate || '2026-01-15', action: `Enrolled as ${currentMember?.type}`, amt: 499 }
+                  { date: currentMember?.startDate || '2026-01-15', action: `Enrolled as ${currentMember?.type || 'Standard Member'}`, amt: 499 }
                 ]).map((h, i) => (
                   <div
                     key={i}
@@ -147,13 +165,13 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
               <Badge variant="purple" style={{ marginBottom: '8px' }}>
                 Recommended for You
               </Badge>
-              <h3 style={{ fontSize: '16px', fontWeight: 900 }}>{club.events?.[0]?.title || 'Annual Flagship Hackathon & Workshop'}</h3>
+              <h3 style={{ fontSize: '16px', fontWeight: 900 }}>{clubEvents[0]?.title || 'Annual Flagship Hackathon & Workshop'}</h3>
               <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-muted)', margin: '4px 0 12px' }}>
-                {club.events?.[0]?.description?.substring(0, 100) || 'Connect with campus peers, build real projects, and earn exclusive club certificates!'}...
+                {clubEvents[0]?.description?.substring(0, 100) || 'Connect with campus peers, build real projects, and earn exclusive club certificates!'}...
               </p>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 900, fontSize: '15px' }}>
-                  Member Price: <span style={{ color: '#059669' }}>{club.events?.[0] ? `₹${club.events[0].memberPrice}` : '₹150'}</span>
+                  Member Price: <span style={{ color: '#059669' }}>{clubEvents[0] ? `₹${clubEvents[0].memberPrice || 150}` : '₹150'}</span>
                 </span>
                 <Button variant="pink" size="sm" onClick={() => onNavigate && onNavigate('browse-events')}>
                   Get Ticket
