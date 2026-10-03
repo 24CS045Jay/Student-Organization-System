@@ -1,27 +1,35 @@
 import React, { useState } from 'react';
 import { Badge, Button } from './index';
-import { Check, Copy, QrCode, ShieldCheck, Sparkles } from 'lucide-react';
+import { Check, Copy, QrCode, ShieldCheck, Sparkles, Lock } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
-// Generates an SVG pseudo-QR matrix pattern deterministic for any string code
+// Proprietary ClubSphere Neo-Matrix 2D Barcode (In-App Only)
 export const NeoQRCode = ({ code = 'TC-001', size = 150, color = '#121212' }) => {
+
   return (
     <div
       style={{
-        padding: '12px',
+        padding: '14px',
         backgroundColor: '#FFFFFF',
-        border: '2.5px solid #121212',
+        border: '3px solid #121212',
         borderRadius: '16px',
         boxShadow: '4px 4px 0px #121212',
         display: 'inline-flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '8px'
+        gap: '8px',
+        position: 'relative'
       }}
     >
       <QRCodeSVG value={code} size={size} fgColor={color} />
-      <span style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: '12px', letterSpacing: '0.08em', color: '#121212' }}>
-        {code}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <Lock size={10} color="#71717A" />
+        <span style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: '12px', letterSpacing: '0.08em', color: '#121212' }}>
+          {code}
+        </span>
+      </div>
+      <span style={{ fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', color: '#999', letterSpacing: '0.05em' }}>
+        ClubSphere Secure Pass
       </span>
     </div>
   );

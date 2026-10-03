@@ -310,13 +310,13 @@ export default function App() {
       case 'club-dash':
         return <ClubDashboardView session={session} activeClub={activeClub} onNavigate={setActiveTab} />;
       case 'my-membership':
-        return <MyMembershipView session={session} activeClub={activeClub} onRenewSuccess={handleDataChange} onNavigate={setActiveTab} />;
+        return <MyMembershipView key={`membership-${dataVersion}`} session={session} activeClub={activeClub} onRenewSuccess={handleDataChange} onNavigate={setActiveTab} />;
       case 'members-list':
         return <MembersListView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
       case 'member-verify':
         return <MemberVerificationView session={session} activeClub={activeClub} onToast={handleToast} />;
       case 'browse-events':
-        return <BrowseEventsView session={session} activeClub={activeClub} onToast={handleToast} onNavigate={setActiveTab} />;
+        return <BrowseEventsView key={`browse-events-${dataVersion}`} session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} onNavigate={setActiveTab} />;
       case 'events-list':
       case 'event-profit':
         return <EventsManagerView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} onNavigate={setActiveTab} />;

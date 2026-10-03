@@ -157,6 +157,23 @@ export const clubService = {
     return [...club.events];
   },
 
+  getAllEvents: () => {
+    const allClubs = Object.values(dbInstance.data.clubs || {});
+    const list = [];
+    allClubs.forEach(club => {
+      (club.events || []).forEach(ev => {
+        list.push({
+          ...ev,
+          clubId: club.id,
+          clubName: club.name,
+          clubPrefix: club.prefix,
+          clubColor: club.color || '#FFE853'
+        });
+      });
+    });
+    return list;
+  },
+
   createEvent: (orgId, eventData, session) => {
     const club = dbInstance.getClub(orgId);
     const newEvent = {
@@ -170,7 +187,7 @@ export const clubService = {
       sold: 0,
       memberPrice: Number(eventData.memberPrice) || 0,
       nonMemberPrice: Number(eventData.nonMemberPrice) || 100,
-      status: eventData.status || 'Draft',
+      status: eventData.status || 'Published',
       description: eventData.description,
       deadline: eventData.deadline || `${eventData.date} 23:59`,
       organizer: eventData.organizer || `${club.name} Team`,
@@ -183,6 +200,43 @@ export const clubService = {
     dbInstance.save();
     supabaseSync.syncEvent(orgId, newEvent);
     return newEvent;
+  },
+
+  updateEventStatus: (orgId, eventId, status, session) => {
+    const club = dbInstance.getClub(orgId);
+    const event = club.events.find(e => e.id === eventId);
+    if (!event) throw new Error('Event not found');
+    const oldStatus = event.status;
+    event.status = status;
+    dbInstance.logAudit(orgId, session?.email, session?.role, 'Updated Event Status', `Changed event "${event.title}" status to ${status}`, oldStatus, status);
+    dbInstance.save();
+    supabaseSync.syncEvent(orgId, event);
+    return event;
+  },
+
+  publishEvent: (orgId, eventId, session) => {
+    return clubService.updateEventStatus(orgId, eventId, 'Published', session);
+  },
+
+  updateEvent: (orgId, eventId, updatedData, session) => {
+    const club = dbInstance.getClub(orgId);
+    const event = club.events.find(e => e.id === eventId);
+    if (!event) throw new Error('Event not found');
+    Object.assign(event, updatedData);
+    dbInstance.logAudit(orgId, session?.email, session?.role, 'Updated Event', `Updated event "${event.title}"`, '', '');
+    dbInstance.save();
+    supabaseSync.syncEvent(orgId, event);
+    return event;
+  },
+
+  deleteEvent: (orgId, eventId, session) => {
+    const club = dbInstance.getClub(orgId);
+    const index = club.events.findIndex(e => e.id === eventId);
+    if (index === -1) throw new Error('Event not found');
+    const removed = club.events.splice(index, 1)[0];
+    dbInstance.logAudit(orgId, session?.email, session?.role, 'Deleted Event', `Deleted event "${removed.title}"`, removed.id, '');
+    dbInstance.save();
+    return removed;
   },
 
   buyTicket: (orgId, eventId, attendeeInfo, session, paymentDetails = null) => {
@@ -274,36 +328,98 @@ export const clubService = {
     return ticket;
   },
 
-  validateAndCheckInTicket: (orgId, queryTicketId, session) => {
-    const cleanId = (queryTicketId || '').trim().toUpperCase();
+  getTickets: (orgId) => {
+    const club = dbInstance.getClub(orgId);
+    return [...(club.tickets || [])];
+  },
+
+  validateAndCheckInTicket: (orgId, queryTicketId, session, targetEventId = null) => {
+    let cleanId = (queryTicketId || '').trim();
     if (!cleanId) return { status: 'INVALID', message: 'No ticket barcode or ID provided.' };
 
-    // Tenant Isolation Check across other clubs
+    // Strip leading / trailing quotes or whitespace
+    cleanId = cleanId.replace(/["']/g, '').trim();
+
+    // Check if it's a signed token format (e.g. CSQ1.TKT-TC-9801... or CSM1.TC.TC-001...)
+    if (cleanId.startsWith('CSQ1.') || cleanId.startsWith('CSM1.')) {
+      const parts = cleanId.split('.');
+      if (parts.length >= 2 && parts[1]) {
+        cleanId = parts[1]; // Extract core ticket ID or member ID
+      }
+    }
+
+    const upperId = cleanId.toUpperCase();
+    const club = dbInstance.getClub(orgId);
+    if (!club.tickets) club.tickets = [];
+    if (!club.members) club.members = [];
+
+    // 1. Cross-Tenant Isolation Check: Does this ticket belong to another club?
     for (const [otherOrgId, otherClub] of Object.entries(dbInstance.data.clubs)) {
       if (otherOrgId !== orgId) {
-        const otherTicket = otherClub.tickets.find(t => t.id.toUpperCase() === cleanId);
+        const otherTicket = (otherClub.tickets || []).find(
+          t => t.id.toUpperCase() === upperId || (t.qrToken && t.qrToken.toUpperCase() === upperId)
+        );
         if (otherTicket) {
           return {
             status: 'WRONG_CLUB',
-            message: `Cross-tenant Ticket: This ticket belongs to ${otherClub.name}!`,
-            ticket: otherTicket
+            message: `Cross-tenant Rejection: Ticket belongs to ${otherClub.name}, NOT ${club.name}!`,
+            ticket: otherTicket,
+            clubName: otherClub.name
           };
         }
       }
     }
 
-    const club = dbInstance.getClub(orgId);
-    const ticket = club.tickets.find(t => t.id.toUpperCase() === cleanId);
+    // 2. Direct Ticket Search in Current Club (By Ticket ID or Signed Token)
+    let ticket = club.tickets.find(
+      t => t.id.toUpperCase() === upperId || (t.qrToken && t.qrToken.toUpperCase() === upperId)
+    );
 
+    // 3. Member ID / Student ID / Email Lookup:
+    // If attendee scanned their Member Pass QR or gave Student Roll # / Email
     if (!ticket) {
-      return { status: 'INVALID', message: `Ticket ID "${cleanId}" not found in current club database.` };
+      const member = club.members.find(
+        m => m.id.toUpperCase() === upperId ||
+             m.studentId?.toUpperCase() === upperId ||
+             m.email.toLowerCase() === cleanId.toLowerCase()
+      );
+
+      if (member) {
+        // Look for tickets booked by this member (prefer targetEventId if provided)
+        const memberTickets = club.tickets.filter(
+          t => (t.memberId && t.memberId.toUpperCase() === member.id.toUpperCase()) ||
+               (t.email && t.email.toLowerCase() === member.email.toLowerCase()) ||
+               (t.studentId && t.studentId.toUpperCase() === (member.studentId || '').toUpperCase())
+        );
+
+        if (memberTickets.length > 0) {
+          if (targetEventId) {
+            ticket = memberTickets.find(t => t.eventId === targetEventId) || memberTickets[0];
+          } else {
+            // Pick valid ticket or most recent
+            ticket = memberTickets.find(t => t.status === 'Valid') || memberTickets[0];
+          }
+        } else {
+          return {
+            status: 'NOT_REGISTERED',
+            member,
+            message: `Active Member ${member.name} (${member.id}) found, but has not booked a ticket for this event.`,
+            canQuickAdmit: true
+          };
+        }
+      }
     }
 
+    if (!ticket) {
+      return { status: 'INVALID', message: `No ticket or registered attendee found for "${cleanId}".` };
+    }
+
+    // 4. Duplicate Check-in Prevention (Anti-Passback)
     if (ticket.status === 'Attended') {
       return {
         status: 'ALREADY_USED',
         ticket,
-        message: `⚠️ DUPLICATE ENTRY ATTEMPT! Already scanned at ${ticket.checkInTime || 'Earlier Today'}.`
+        message: `⚠️ DUPLICATE ENTRY BLOCKED! This ticket was already checked in at ${ticket.checkInTime || 'Earlier Today'}.`
       };
     }
 
@@ -315,18 +431,104 @@ export const clubService = {
       };
     }
 
-    // Mark as attended
-    const checkInTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', Today';
+    // 5. Mark as Attended & Record Timestamp
+    const checkInTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ', Today';
     ticket.status = 'Attended';
     ticket.checkInTime = checkInTimestamp;
 
-    dbInstance.logAudit(orgId, session?.email, session?.role, 'QR Check-in Scanned', `Marked ${ticket.id} (${ticket.attendeeName}) as Attended`, 'Valid', 'Attended');
+    // Increment member's club attendance count
+    const associatedMember = club.members.find(
+      m => (ticket.memberId && m.id === ticket.memberId) ||
+           (m.email && m.email.toLowerCase() === ticket.email?.toLowerCase()) ||
+           (m.studentId && m.studentId === ticket.studentId)
+    );
+    if (associatedMember) {
+      associatedMember.attendanceCount = (associatedMember.attendanceCount || 0) + 1;
+    }
+
+    // Update event attended counter
+    const event = (club.events || []).find(e => e.id === ticket.eventId);
+    if (event) {
+      event.attended = (event.attended || 0) + 1;
+    }
+
+    dbInstance.logAudit(
+      orgId,
+      session?.email,
+      session?.role,
+      'Event Check-in Confirmed',
+      `Checked in ${ticket.attendeeName} (${ticket.id}) for "${ticket.eventTitle || 'Event'}" at ${checkInTimestamp}`,
+      'Valid',
+      'Attended'
+    );
     dbInstance.save();
 
     return {
       status: 'ATTENDED_SUCCESS',
       ticket,
-      message: `✅ VALID TICKET! Welcome, ${ticket.attendeeName} (${ticket.seat})!`
+      member: associatedMember,
+      message: `✅ ENTRY APPROVED! Welcome, ${ticket.attendeeName} (${ticket.seat})!`
+    };
+  },
+
+  quickAdmitMember: (orgId, eventId, memberIdOrQuery, session) => {
+    const club = dbInstance.getClub(orgId);
+    const event = (club.events || []).find(e => e.id === eventId) || club.events[0];
+    if (!event) throw new Error('No event selected for admission');
+
+    const cleanId = (memberIdOrQuery || '').trim().toUpperCase();
+    const member = club.members.find(
+      m => m.id.toUpperCase() === cleanId ||
+           m.studentId?.toUpperCase() === cleanId ||
+           m.email.toLowerCase() === memberIdOrQuery.toLowerCase()
+    );
+
+    if (!member) throw new Error('Member record not found');
+
+    event.sold = (event.sold || 0) + 1;
+    const tktId = `TKT-${club.prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const checkInTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ', Today';
+
+    const newTicket = {
+      id: tktId,
+      eventId: event.id,
+      eventTitle: event.title,
+      memberId: member.id,
+      attendeeName: member.name,
+      email: member.email,
+      studentId: member.studentId,
+      isMember: true,
+      pricePaid: event.memberPrice || 0,
+      status: 'Attended',
+      checkInTime: checkInTimestamp,
+      seat: `Walk-in Pass #${event.sold}`,
+      purchaseDate: new Date().toISOString().split('T')[0],
+      qrToken: `CSQ1.${tktId}.${orgId}.${Date.now().toString(16)}`,
+      paymentId: 'GATE-DESK-ADMIT',
+      paymentProvider: 'door-pass'
+    };
+
+    if (!club.tickets) club.tickets = [];
+    club.tickets.unshift(newTicket);
+    member.attendanceCount = (member.attendanceCount || 0) + 1;
+    event.attended = (event.attended || 0) + 1;
+
+    dbInstance.logAudit(
+      orgId,
+      session?.email,
+      session?.role,
+      'Gate Quick Admission',
+      `Walk-in admission issued for Member ${member.name} (${member.id}) to "${event.title}"`,
+      'New Walk-in',
+      'Attended'
+    );
+    dbInstance.save();
+
+    return {
+      status: 'ATTENDED_SUCCESS',
+      ticket: newTicket,
+      member,
+      message: `⚡ QUICK ADMIT CONFIRMED! Member ${member.name} admitted successfully.`
     };
   },
 
