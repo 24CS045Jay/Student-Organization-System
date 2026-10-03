@@ -9,19 +9,36 @@ import {
   CheckCircle2,
   AlertCircle,
   Zap,
-  Globe
+  Globe,
+  Sparkles,
+  KeyRound,
+  Copy,
+  ArrowRight,
+  Info
 } from 'lucide-react';
 import { dbInstance } from '../../mock/db';
+import { clubService } from '../../services/clubService';
 
 export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login' }) => {
   const [mode, setMode] = useState(initialMode); // 'login' | 'register'
-  const [email, setEmail] = useState('');
+  
+  // Form fields
+  const [personalEmail, setPersonalEmail] = useState('');
+  const [clubLoginEmail, setClubLoginEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [selectedOrgId, setSelectedOrgId] = useState('');
   const [role, setRole] = useState('student');
+  const [studentRollNo, setStudentRollNo] = useState('');
+  
   const [error, setError] = useState(null);
+  const [registrationSuccess, setRegistrationSuccess] = useState(null);
+  const [copiedEmail, setCopiedEmail] = useState(false);
 
-  // Available roles (strictly club roles)
+  // Available registered clubs from database
+  const registeredClubs = Object.values(dbInstance.data.clubs || {});
+
+  // Available roles
   const roles = [
     { value: 'student', label: 'Student / Club Member' },
     { value: 'volunteer', label: 'Club Volunteer' },
@@ -30,13 +47,11 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
     { value: 'admin', label: 'Club Administrator' }
   ];
 
-  // Dynamic Helper: Detect club based on email address across all registered clubs
+  // Helper to detect club from typed club email
   const detectClubFromEmail = (emailStr) => {
     const lower = (emailStr || '').toLowerCase();
-    const registeredClubs = Object.values(dbInstance.data.clubs || {});
     if (registeredClubs.length === 0) return null;
 
-    // 1. Match by configured email domain (e.g. @robotics.campus.edu)
     for (const club of registeredClubs) {
       if (club.emailDomain) {
         const domainClean = club.emailDomain.replace('@', '').toLowerCase();
@@ -44,10 +59,6 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
           return { id: club.id, name: club.name, color: club.color || '#FFE853' };
         }
       }
-    }
-
-    // 2. Match by club ID, short code, or prefix
-    for (const club of registeredClubs) {
       if (
         (club.id && lower.includes(club.id.toLowerCase())) ||
         (club.short && lower.includes(club.short.toLowerCase())) ||
@@ -56,84 +67,83 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
         return { id: club.id, name: club.name, color: club.color || '#FFE853' };
       }
     }
-
-    // 3. If there is only 1 registered club on campus, map to that club
-    if (registeredClubs.length === 1 && lower.includes('@')) {
-      const single = registeredClubs[0];
-      return { id: single.id, name: single.name, color: single.color || '#FFE853' };
-    }
-
     return null;
   };
 
-  const detectedClub = detectClubFromEmail(email);
+  const detectedClub = detectClubFromEmail(clubLoginEmail);
 
-  // Quick Demo Personas dynamically derived from active registered clubs
-  const registeredClubsList = Object.values(dbInstance.data.clubs || {});
-  const demoPersonas = registeredClubsList.flatMap(c => [
-    { role: 'admin', orgId: c.id, email: `admin${c.emailDomain || `@${c.id}.campus.edu`}`, name: `${c.short || c.name} Admin`, label: `${c.short || c.name} Admin`, color: c.color || '#FFE853' },
-    { role: 'student', orgId: c.id, email: `student${c.emailDomain || `@${c.id}.campus.edu`}`, name: `${c.short || c.name} Student`, label: `${c.short || c.name} Student`, color: '#70D6FF' }
-  ]);
-
-  const handleSubmit = (e) => {
+  const handleRegisterSubmit = (e) => {
     e.preventDefault();
     setError(null);
 
-    if (!email) {
-      setError('Please enter your institutional or club email address.');
+    if (!name.trim()) {
+      setError('Please enter your full name.');
       return;
     }
 
-    if (registeredClubsList.length === 0) {
-      setError('⚠️ No student clubs have been created yet on the platform. Please access the Super Admin Portal to onboard your first club organization.');
+    if (!personalEmail.trim() || !personalEmail.includes('@')) {
+      setError('Please enter a valid personal email address (e.g. yourname@gmail.com).');
       return;
     }
 
-    const club = detectClubFromEmail(email);
-    if (!club) {
-      setError(`❌ No club found matching the email domain "${email.split('@')[1] || email}". Please verify your email or onboard this club in the Super Admin Portal.`);
+    const targetOrgId = selectedOrgId || registeredClubs[0]?.id;
+    if (!targetOrgId) {
+      setError('⚠️ No student clubs exist in the system yet. Please create a club first in the Super Admin Portal.');
       return;
     }
 
-    const assignedRole = role;
-    const userName = name.trim() || email.split('@')[0].replace('.', ' ').toUpperCase();
+    try {
+      const res = clubService.signUpUser({
+        name,
+        personalEmail,
+        role,
+        orgId: targetOrgId,
+        password: password || '12345678',
+        studentRollNo: studentRollNo || `24CS${Math.floor(100 + Math.random() * 900)}`
+      });
 
-    // If registering a new user, also record in club.members table if not already present
-    if (mode === 'register') {
-      try {
-        clubService.registerMember(club.id, {
-          name: userName,
-          email: email,
-          dept: 'Computer Engineering',
-          type: 'Standard Member',
-          paid: 1
-        }, { email, role: assignedRole });
-      } catch (err) {
-        console.warn('Auto member registration notice:', err);
-      }
+      setRegistrationSuccess(res);
+      setClubLoginEmail(res.assignedClubEmail);
+      setPassword(res.initialPassword);
+    } catch (err) {
+      setError(err.message);
     }
-
-    const sessionData = {
-      role: assignedRole,
-      orgId: club.id,
-      email: email,
-      name: userName
-    };
-
-    onAuthSuccess(sessionData);
   };
 
-  const handleQuickDemo = (persona) => {
-    setEmail(persona.email);
-    setRole(persona.role);
-    setName(persona.name);
-    setPassword('demo1234');
-    onAuthSuccess({
-      role: persona.role,
-      orgId: persona.orgId,
-      email: persona.email,
-      name: persona.name
+  const handleLoginSubmit = (e) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!clubLoginEmail.trim()) {
+      setError('Please enter your assigned official club email.');
+      return;
+    }
+
+    if (!password) {
+      setError('Please enter your account password.');
+      return;
+    }
+
+    const res = clubService.loginUser({
+      email: clubLoginEmail,
+      password: password
     });
+
+    if (!res.success) {
+      setError(res.error);
+      if (res.isPersonalEmail && res.assignedClubEmail) {
+        setClubLoginEmail(res.assignedClubEmail);
+      }
+      return;
+    }
+
+    onAuthSuccess(res.session);
+  };
+
+  const handleCopyAssignedEmail = (emailToCopy) => {
+    navigator.clipboard?.writeText(emailToCopy);
+    setCopiedEmail(true);
+    setTimeout(() => setCopiedEmail(false), 2000);
   };
 
   return (
@@ -165,67 +175,91 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
         <span>Back to Landing Page</span>
       </button>
 
-      {/* Main Auth Box */}
+      {/* Main Container */}
       <div
         className="neo-box"
         style={{
-          maxWidth: '520px',
+          maxWidth: '560px',
           width: '100%',
           backgroundColor: '#FFFFFF',
-          padding: '32px',
+          padding: '36px 32px',
           boxShadow: '6px 6px 0px #121212'
         }}
       >
-        {/* Brand Header */}
+        {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <div
             style={{
-              width: '46px',
-              height: '46px',
-              backgroundColor: '#121212',
-              color: '#FFE853',
+              width: '52px',
+              height: '52px',
+              backgroundColor: '#FFE853',
+              color: '#121212',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontWeight: 900,
-              fontSize: '22px',
-              borderRadius: '12px',
+              fontSize: '24px',
+              borderRadius: '14px',
               border: '2px solid #121212',
               boxShadow: '3px 3px 0px #121212',
-              marginBottom: '10px'
+              marginBottom: '12px'
             }}
           >
             CS
           </div>
-          <h1 style={{ fontSize: '26px', fontWeight: 900, margin: '0 0 6px', color: '#121212' }}>
-            {mode === 'login' ? 'Sign In to ClubSphere' : 'Create ClubSphere Account'}
-          </h1>
+          <h2 style={{ fontSize: '26px', fontWeight: 900, margin: '0 0 6px', color: '#121212' }}>
+            {mode === 'login' ? 'Sign In to Your Club' : 'Student Club Registration'}
+          </h2>
           <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)', margin: 0 }}>
             {mode === 'login'
-              ? 'Enter your unique club email to access your isolated workspace'
-              : 'Register with your unique club email for automated club assignment'}
+              ? 'Enter with your assigned official club domain email.'
+              : 'Sign up with personal email to receive your dedicated club login email.'}
           </p>
         </div>
 
-        {/* Mode Switcher Tabs */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '20px' }}>
-          <button
-            type="button"
-            onClick={() => { setMode('login'); setError(null); }}
-            className={`neo-btn ${mode === 'login' ? 'neo-btn-yellow' : 'neo-btn-white'}`}
-            style={{ padding: '8px', fontSize: '13px' }}
+        {/* Mode Switch Tabs */}
+        {!registrationSuccess && (
+          <div
+            style={{
+              display: 'flex',
+              backgroundColor: '#FAF5EE',
+              border: '2px solid #121212',
+              borderRadius: '10px',
+              padding: '4px',
+              marginBottom: '20px',
+              gap: '4px'
+            }}
           >
-            Sign In
-          </button>
-          <button
-            type="button"
-            onClick={() => { setMode('register'); setError(null); }}
-            className={`neo-btn ${mode === 'register' ? 'neo-btn-yellow' : 'neo-btn-white'}`}
-            style={{ padding: '8px', fontSize: '13px' }}
-          >
-            Sign Up
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => { setMode('login'); setError(null); }}
+              className="neo-btn neo-btn-sm"
+              style={{
+                flex: 1,
+                backgroundColor: mode === 'login' ? '#FFE853' : 'transparent',
+                border: mode === 'login' ? '2px solid #121212' : 'none',
+                boxShadow: mode === 'login' ? '2px 2px 0px #121212' : 'none',
+                fontWeight: 900
+              }}
+            >
+              Sign In (Official Club Email)
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode('register'); setError(null); }}
+              className="neo-btn neo-btn-sm"
+              style={{
+                flex: 1,
+                backgroundColor: mode === 'register' ? '#FFE853' : 'transparent',
+                border: mode === 'register' ? '2px solid #121212' : 'none',
+                boxShadow: mode === 'register' ? '2px 2px 0px #121212' : 'none',
+                fontWeight: 900
+              }}
+            >
+              Sign Up (Get Club Email)
+            </button>
+          </div>
+        )}
 
         {/* Error Alert */}
         {error && (
@@ -236,7 +270,7 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
               border: '2px solid #DC2626',
               borderRadius: '8px',
               color: '#991B1B',
-              fontSize: '12px',
+              fontSize: '13px',
               fontWeight: 800,
               display: 'flex',
               alignItems: 'center',
@@ -244,14 +278,107 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
               marginBottom: '16px'
             }}
           >
-            <AlertCircle size={16} />
+            <AlertCircle size={18} style={{ flexShrink: 0 }} />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Full Name (Sign Up only) */}
-          {mode === 'register' && (
+        {/* CASE 1: Registration Success Credential Modal Card */}
+        {registrationSuccess ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div
+              style={{
+                backgroundColor: '#F0FDF4',
+                border: '2.5px solid #16A34A',
+                borderRadius: '14px',
+                padding: '20px',
+                boxShadow: '4px 4px 0px #16A34A'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', color: '#166534' }}>
+                <CheckCircle2 size={22} />
+                <h3 style={{ fontSize: '16px', fontWeight: 900, margin: 0 }}>
+                  Account Created & Official Email Generated!
+                </h3>
+              </div>
+
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#14532D', marginBottom: '16px', lineHeight: 1.5 }}>
+                Your personal email <strong>{registrationSuccess.user.personalEmail}</strong> has been assigned the official institutional email below.
+              </p>
+
+              <div
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  border: '2px solid #121212',
+                  borderRadius: '10px',
+                  padding: '14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}
+              >
+                <div>
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--ink-muted)', textTransform: 'uppercase' }}>
+                    Assigned Official Club Login Email:
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
+                    <code style={{ fontSize: '15px', fontWeight: 900, color: '#2563EB', wordBreak: 'break-all' }}>
+                      {registrationSuccess.assignedClubEmail}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyAssignedEmail(registrationSuccess.assignedClubEmail)}
+                      className="neo-btn neo-btn-white neo-btn-sm"
+                      style={{ padding: '4px 8px', fontSize: '11px', marginLeft: '8px' }}
+                    >
+                      {copiedEmail ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ borderTop: '1px dashed #D1D5DB', paddingTop: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 800 }}>Initial Password:</span>
+                  <code style={{ fontSize: '13px', fontWeight: 900, color: '#121212' }}>{registrationSuccess.initialPassword}</code>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 800 }}>Role / Club:</span>
+                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#121212' }}>
+                    {registrationSuccess.user.role.toUpperCase()} • {registrationSuccess.clubName}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '14px', fontSize: '11px', color: '#166534', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Sparkles size={14} />
+                <span>Credentials have been synced to the database and sent to your personal email!</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setRegistrationSuccess(null);
+                setMode('login');
+              }}
+              className="neo-btn neo-btn-yellow"
+              style={{
+                padding: '14px',
+                fontSize: '15px',
+                fontWeight: 900,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <span>Proceed to Sign In with Assigned Email</span>
+              <ArrowRight size={18} />
+            </button>
+          </div>
+        ) : mode === 'register' ? (
+          /* CASE 2: Sign Up Form (Personal Email -> Club Email Assignment) */
+          <form onSubmit={handleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Full Name */}
             <div>
               <label className="neo-label">Full Name *</label>
               <div style={{ position: 'relative' }}>
@@ -267,142 +394,177 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
                 <User size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
               </div>
             </div>
-          )}
 
-          {/* Role Selection */}
-          <div>
-            <label className="neo-label">Your Role in the Club *</label>
-            <div style={{ position: 'relative' }}>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="neo-input neo-select"
-                style={{ paddingLeft: '38px', fontWeight: 700 }}
-              >
-                {roles.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
-              <Shield size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
-            </div>
-            <p style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 700, margin: '4px 0 0' }}>
-              Workspace views and permissions are strictly bounded by this role.
-            </p>
-          </div>
-
-          {/* Email Address */}
-          <div>
-            <label className="neo-label">Institutional / Club Email *</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="email"
-                required
-                placeholder="e.g. yourname@tech.campus.edu"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="neo-input"
-                style={{ paddingLeft: '38px' }}
-              />
-              <Mail size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+            {/* Personal Email Address */}
+            <div>
+              <label className="neo-label">Your Personal Email Address *</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. neil.patel@gmail.com"
+                  value={personalEmail}
+                  onChange={(e) => setPersonalEmail(e.target.value)}
+                  className="neo-input"
+                  style={{ paddingLeft: '38px' }}
+                />
+                <Mail size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+              </div>
+              <p style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 700, margin: '4px 0 0' }}>
+                Our platform will assign your official club email and send the initial access pass here.
+              </p>
             </div>
 
-            {/* Dynamic Auto-Detected Club Indicator */}
-            {email.includes('@') && (
+            {/* Select Target Club */}
+            <div>
+              <label className="neo-label">Select Club Organization *</label>
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={selectedOrgId || (registeredClubs[0]?.id || '')}
+                  onChange={(e) => setSelectedOrgId(e.target.value)}
+                  className="neo-input neo-select"
+                  style={{ paddingLeft: '38px', fontWeight: 700 }}
+                  required
+                >
+                  {registeredClubs.length === 0 ? (
+                    <option value="">No clubs created yet (Super Admin must create first)</option>
+                  ) : (
+                    registeredClubs.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.emailDomain || `@${c.id}.campus.edu`})
+                      </option>
+                    ))
+                  )}
+                </select>
+                <Building2 size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+              </div>
+            </div>
+
+            {/* Select Role */}
+            <div>
+              <label className="neo-label">Your Desired Role in the Club *</label>
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="neo-input neo-select"
+                  style={{ paddingLeft: '38px', fontWeight: 700 }}
+                >
+                  {roles.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+                <Shield size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="neo-label">Create Initial Password *</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="password"
+                  required
+                  placeholder="Set your password (e.g. 12345678)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="neo-input"
+                  style={{ paddingLeft: '38px' }}
+                />
+                <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              className="neo-btn neo-btn-yellow"
+              style={{ padding: '14px', fontSize: '15px', fontWeight: 900, marginTop: '8px' }}
+              disabled={registeredClubs.length === 0}
+            >
+              Create Account & Generate Official Club Email
+            </button>
+          </form>
+        ) : (
+          /* CASE 3: Sign In Form (Using Assigned Club Email) */
+          <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Assigned Club Email */}
+            <div>
+              <label className="neo-label">Official Assigned Club Email *</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. neiladmin@techgenius.com"
+                  value={clubLoginEmail}
+                  onChange={(e) => setClubLoginEmail(e.target.value)}
+                  className="neo-input"
+                  style={{ paddingLeft: '38px' }}
+                />
+                <Mail size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+              </div>
+              <p style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 700, margin: '4px 0 0' }}>
+                Must be the platform-assigned club email (e.g. <code>nameadmin@clubdomain.com</code>).
+              </p>
+            </div>
+
+            {/* Detected Club Badge */}
+            {detectedClub && (
               <div
                 style={{
-                  marginTop: '8px',
                   padding: '8px 12px',
                   backgroundColor: '#FAF5EE',
-                  border: '1.5px solid #121212',
+                  border: '2px solid #121212',
                   borderRadius: '8px',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
-                  fontSize: '12px',
-                  fontWeight: 800
+                  gap: '8px'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Building2 size={14} color="#121212" />
-                  <span>Assigned Club Workspace:</span>
-                </div>
-                <span
+                <div
                   style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
                     backgroundColor: detectedClub.color,
-                    color: detectedClub.isSuperAdmin ? '#FFFFFF' : '#121212',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    border: '1px solid #121212',
-                    fontSize: '11px',
-                    fontWeight: 900
+                    border: '1.5px solid #000'
                   }}
-                >
-                  {detectedClub.name}
+                />
+                <span style={{ fontSize: '12px', fontWeight: 800, color: '#121212' }}>
+                  Target Club Organization: <strong>{detectedClub.name}</strong>
                 </span>
               </div>
             )}
-          </div>
 
-          {/* Password */}
-          <div>
-            <label className="neo-label">Password *</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="password"
-                required
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="neo-input"
-                style={{ paddingLeft: '38px' }}
-              />
-              <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+            {/* Password */}
+            <div>
+              <label className="neo-label">Password *</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="password"
+                  required
+                  placeholder="Enter your account password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="neo-input"
+                  style={{ paddingLeft: '38px' }}
+                />
+                <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+              </div>
             </div>
-          </div>
 
-          {/* Submit Action */}
-          <button
-            type="submit"
-            className="neo-btn neo-btn-yellow"
-            style={{ width: '100%', padding: '12px', fontSize: '15px', marginTop: '6px' }}
-          >
-            {mode === 'login' ? 'Sign In to Portal' : 'Register & Enter Workspace'}
-          </button>
-        </form>
-
-        {/* Demo Personas Quick Select */}
-        <div style={{ marginTop: '24px', borderTop: '2px dashed #121212', paddingTop: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-            <Zap size={15} />
-            <span style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Instant Demo Login (One-Click)
-            </span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}>
-            {demoPersonas.map((p) => (
-              <button
-                key={p.email}
-                type="button"
-                onClick={() => handleQuickDemo(p)}
-                className="neo-btn neo-btn-white"
-                style={{
-                  padding: '6px 10px',
-                  fontSize: '11px',
-                  textAlign: 'left',
-                  borderLeft: `4px solid ${p.color}`,
-                  display: 'flex',
-                  flexDirection: 'column'
-                }}
-              >
-                <span style={{ fontWeight: 900 }}>{p.label}</span>
-                <span style={{ color: 'var(--ink-muted)', fontSize: '10px' }}>{p.email}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+            {/* Submit Button */}
+            <button
+              type="submit"
+              className="neo-btn neo-btn-yellow"
+              style={{ padding: '14px', fontSize: '15px', fontWeight: 900, marginTop: '8px' }}
+            >
+              Sign In to Club Workspace
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
