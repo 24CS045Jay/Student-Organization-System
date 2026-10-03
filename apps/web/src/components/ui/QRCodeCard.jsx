@@ -1,58 +1,36 @@
 import React, { useState } from 'react';
 import { Badge, Button } from './index';
-import { Check, Copy, QrCode, ShieldCheck, Sparkles } from 'lucide-react';
+import { Check, Copy, QrCode, ShieldCheck, Sparkles, Lock } from 'lucide-react';
+import { generateNeoMatrix } from '../../services/neoMatrixService.js';
 
-// Generates an SVG pseudo-QR matrix pattern deterministic for any string code
+// Proprietary ClubSphere Neo-Matrix 2D Barcode (In-App Only)
 export const NeoQRCode = ({ code = 'TC-001', size = 150, color = '#121212' }) => {
-  // Simple deterministic pseudo-random grid generator based on string hash
-  const getHash = (str) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i);
-      hash |= 0;
-    }
-    return Math.abs(hash);
-  };
-
   const gridSize = 11;
-  const hash = getHash(code);
-  const matrix = [];
-
-  for (let r = 0; r < gridSize; r++) {
-    const row = [];
-    for (let c = 0; c < gridSize; c++) {
-      // Corner alignment squares (standard QR look)
-      if ((r < 3 && c < 3) || (r < 3 && c > gridSize - 4) || (r > gridSize - 4 && c < 3)) {
-        if ((r === 1 && c === 1) || (r === 1 && c === gridSize - 2) || (r === gridSize - 2 && c === 1)) {
-          row.push(0);
-        } else {
-          row.push(1);
-        }
-      } else {
-        const bit = ((hash ^ (r * 19 + c * 31)) % 100) > 42 ? 1 : 0;
-        row.push(bit);
-      }
-    }
-    matrix.push(row);
-  }
-
+  const matrix = generateNeoMatrix(code, gridSize);
   const cellSize = size / gridSize;
 
   return (
     <div
       style={{
-        padding: '12px',
+        padding: '14px',
         backgroundColor: '#FFFFFF',
-        border: '2.5px solid #121212',
+        border: '3px solid #121212',
         borderRadius: '16px',
         boxShadow: '4px 4px 0px #121212',
         display: 'inline-flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '8px'
+        gap: '8px',
+        position: 'relative'
       }}
     >
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        style={{ display: 'block', backgroundColor: '#FFFFFF' }}
+      >
+        <rect width={size} height={size} fill="#FFFFFF" rx={8} />
         {matrix.map((row, rIdx) =>
           row.map((cell, cIdx) => {
             if (!cell) return null;
@@ -61,17 +39,23 @@ export const NeoQRCode = ({ code = 'TC-001', size = 150, color = '#121212' }) =>
                 key={`${rIdx}-${cIdx}`}
                 x={cIdx * cellSize}
                 y={rIdx * cellSize}
-                width={cellSize - 0.8}
-                height={cellSize - 0.8}
-                rx={cellSize > 12 ? 2.5 : 1}
+                width={cellSize - 0.9}
+                height={cellSize - 0.9}
+                rx={cellSize > 12 ? 2.5 : 1.5}
                 fill={color}
               />
             );
           })
         )}
       </svg>
-      <span style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: '12px', letterSpacing: '0.08em', color: '#121212' }}>
-        {code}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <Lock size={10} color="#71717A" />
+        <span style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: '12px', letterSpacing: '0.08em', color: '#121212' }}>
+          {code}
+        </span>
+      </div>
+      <span style={{ fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', color: '#999', letterSpacing: '0.05em' }}>
+        ClubSphere Secure Pass
       </span>
     </div>
   );

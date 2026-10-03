@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, Button, Badge } from '../../components/ui/index';
 import { NeoQRCode } from '../../components/ui/QRCodeCard';
 import { clubService } from '../../services/clubService';
-import { QrCode, Search, ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, Building, RefreshCw } from 'lucide-react';
+import { decodeInAppQR } from '../../services/neoMatrixService.js';
+import { QrCode, Search, ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, Building, RefreshCw, Upload } from 'lucide-react';
 
 export const MemberVerificationView = ({ session, activeClub, onToast }) => {
   const [queryId, setQueryId] = useState('');
   const [result, setResult] = useState(null);
+  const fileInputRef = useRef(null);
 
   const handleVerify = (idToVerify) => {
     const target = idToVerify || queryId;
@@ -20,6 +22,38 @@ export const MemberVerificationView = ({ session, activeClub, onToast }) => {
   const handleQuickTest = (code) => {
     setQueryId(code);
     handleVerify(code);
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const decoded = decodeInAppQR(imageData);
+
+          if (decoded && decoded.code) {
+            setQueryId(decoded.code);
+            handleVerify(decoded.code);
+          } else {
+            alert('Could not decode QR code from this image. Please ensure the QR is clear and well lit.');
+          }
+        } catch (err) {
+          alert('Error processing image: ' + err.message);
+        }
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -42,12 +76,25 @@ export const MemberVerificationView = ({ session, activeClub, onToast }) => {
             placeholder="Scan QR or enter ID (e.g. TC-001, CC-001, 21IT089)..."
             value={queryId}
             onChange={(e) => setQueryId(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleVerify();
+            }}
             className="neo-input"
             style={{ fontSize: '16px', fontWeight: 800 }}
           />
           <Button variant="black" onClick={() => handleVerify()}>
             Verify
           </Button>
+          <Button variant="white" onClick={() => fileInputRef.current?.click()} icon={Upload}>
+            Upload QR
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handleImageUpload}
+          />
         </div>
 
         {/* Quick Test Presets for Demo Reviewers */}
