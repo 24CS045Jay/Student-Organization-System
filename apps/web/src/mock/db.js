@@ -63,7 +63,72 @@ export const INITIAL_CLUBS_DATA = {
     merchandise: [],
     tasks: [],
     orders: [],
-    tickets: [],
+    tickets: [
+      {
+        id: 'TKT-TC-9801',
+        eventId: 'ev-tc-01',
+        eventTitle: 'CHARUSAT 24h Hackathon 2026',
+        memberId: 'TC-001',
+        attendeeName: 'Jay Barot',
+        email: 'jay.barot@charusat.edu.in',
+        studentId: '24CS045',
+        isMember: true,
+        pricePaid: 150,
+        status: 'Valid',
+        checkInTime: null,
+        seat: 'Pass #12',
+        purchaseDate: '2026-10-01',
+        qrToken: 'CSQ1.TKT-TC-9801.tech.9801sig'
+      },
+      {
+        id: 'TKT-TC-9802',
+        eventId: 'ev-tc-01',
+        eventTitle: 'CHARUSAT 24h Hackathon 2026',
+        memberId: 'TC-002',
+        attendeeName: 'Param Joshi',
+        email: 'param.j@charusat.edu.in',
+        studentId: '24CS015',
+        isMember: true,
+        pricePaid: 150,
+        status: 'Attended',
+        checkInTime: '10:15 AM, Today',
+        seat: 'Pass #13',
+        purchaseDate: '2026-10-01',
+        qrToken: 'CSQ1.TKT-TC-9802.tech.9802sig'
+      },
+      {
+        id: 'TKT-TC-9803',
+        eventId: 'ev-tc-01',
+        eventTitle: 'CHARUSAT 24h Hackathon 2026',
+        memberId: 'TC-001',
+        attendeeName: 'Aarav Patel',
+        email: 'aarav@techclub.edu',
+        studentId: '24CS001',
+        isMember: true,
+        pricePaid: 150,
+        status: 'Valid',
+        checkInTime: null,
+        seat: 'Pass #14',
+        purchaseDate: '2026-10-02',
+        qrToken: 'CSQ1.TKT-TC-9803.tech.9803sig'
+      },
+      {
+        id: 'TKT-TC-9800',
+        eventId: 'ev-tc-01',
+        eventTitle: 'CHARUSAT 24h Hackathon 2026',
+        memberId: 'TC-002',
+        attendeeName: 'Diya Patel',
+        email: 'diya@techclub.edu',
+        studentId: '24IT012',
+        isMember: true,
+        pricePaid: 150,
+        status: 'Valid',
+        checkInTime: null,
+        seat: 'Pass #11',
+        purchaseDate: '2026-10-01',
+        qrToken: 'CSQ1.TKT-TC-9800.tech.9800sig'
+      }
+    ],
     fundraisers: [],
     sponsors: [],
     donations: [],
@@ -163,7 +228,24 @@ export const INITIAL_CLUBS_DATA = {
     merchandise: [],
     tasks: [],
     orders: [],
-    tickets: [],
+    tickets: [
+      {
+        id: 'TKT-CC-401',
+        eventId: 'ev-cc-01',
+        eventTitle: 'Inter-College Dance & Drama Fest',
+        memberId: 'CC-001',
+        attendeeName: 'Ananya Iyer',
+        email: 'ananya@cultclub.edu',
+        studentId: '24IT005',
+        isMember: true,
+        pricePaid: 100,
+        status: 'Valid',
+        checkInTime: null,
+        seat: 'Pass #01',
+        purchaseDate: '2026-10-01',
+        qrToken: 'CSQ1.TKT-CC-401.cult.401sig'
+      }
+    ],
     fundraisers: [],
     sponsors: [],
     donations: [],
@@ -222,8 +304,6 @@ export const INITIAL_CLUBS_DATA = {
     stats: { membersCount: 0 }
   }
 };
-// Zero default clubs by default - only clubs created by user/super admin exist
-export const INITIAL_CLUBS_DATA = {};
 
 // Fresh initial users table
 export const INITIAL_USERS_DATA = [];

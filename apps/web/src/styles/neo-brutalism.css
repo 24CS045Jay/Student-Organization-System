@@ -426,6 +426,21 @@ h5, h6, .font-subheading {
   50% { transform: scale(1.04); }
 }
 
+@keyframes laserSweep {
+  0% {
+    top: 5%;
+    opacity: 0.85;
+  }
+  50% {
+    top: 92%;
+    opacity: 1;
+  }
+  100% {
+    top: 5%;
+    opacity: 0.85;
+  }
+}
+
 /* Scrollbars */
 ::-webkit-scrollbar {
   width: 9px;

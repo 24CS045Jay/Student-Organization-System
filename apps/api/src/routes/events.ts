@@ -100,10 +100,22 @@ eventsRouter.post('/events/:eventId/checkout', (req: any, res: any) => {
 
 // Door QR Check-in Endpoint with anti-passback duplicate guard (Phase 4)
 eventsRouter.post('/checkin', authenticate, (req: any, res: any) => {
-  const { ticketId, orgId } = req.body;
-  const cleanId = (ticketId || '').trim().toUpperCase();
+  let { ticketId, orgId } = req.body;
+  let cleanId = (ticketId || '').trim();
 
-  const tkt = tickets.find(t => t.id.toUpperCase() === cleanId);
+  if (cleanId.startsWith('CSQ1.') || cleanId.startsWith('CSM1.')) {
+    const parts = cleanId.split('.');
+    if (parts.length >= 2 && parts[1]) {
+      cleanId = parts[1];
+    }
+  }
+
+  const upperId = cleanId.toUpperCase();
+  const tkt = tickets.find(
+    t => t.id.toUpperCase() === upperId ||
+         t.email.toLowerCase() === cleanId.toLowerCase() ||
+         t.attendeeName.toLowerCase() === cleanId.toLowerCase()
+  );
   if (!tkt) {
     return res.status(404).json({ status: 'INVALID', message: 'Ticket not found in gate registry.' });
   }
