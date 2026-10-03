@@ -1,0 +1,441 @@
+/* ==========================================================================
+   ClubSphere Neo-Brutalism Design System
+   Inspired by crisp retro-modern sticker & poster aesthetics with vibrant pastels,
+   heavy 3px ink strokes, tactile hard drop-shadows, and playful rounded geometry.
+   ========================================================================== */
+
+:root {
+  /* Core Color Palette (From Neo-Brutalist Reference Designs) */
+  --bg-canvas: #FDF8F0;
+  --bg-canvas-subtle: #F6EFE5;
+  --bg-card: #FFFFFF;
+  --ink: #121212;
+  --ink-muted: #52525B;
+  --ink-light: #8E8E93;
+  --border-color: #121212;
+
+  /* Accent Colors */
+  --accent-yellow: #FFD24C;
+  --accent-yellow-light: #FFF0B3;
+  --accent-pink: #FF70A6;
+  --accent-pink-light: #FFD6E5;
+  --accent-green: #70E4A8;
+  --accent-green-light: #DCFCE7;
+  --accent-purple: #C8B6FF;
+  --accent-purple-light: #EBE5FF;
+  --accent-blue: #74B9FF;
+  --accent-blue-light: #DBEAFE;
+  --accent-orange: #FF9F43;
+  --accent-orange-light: #FFE8D6;
+
+  /* Club Accents */
+  --club-tech: #4CC9F0;
+  --club-cultural: #FF70A6;
+  --club-sports: #70E4A8;
+
+  /* Neo-Brutalism Shadows & Borders */
+  --border-width: 2.5px;
+  --border-width-thick: 3.5px;
+  --border-main: var(--border-width) solid var(--border-color);
+  --border-thick: var(--border-width-thick) solid var(--border-color);
+  
+  --shadow-sm: 2px 2px 0px var(--border-color);
+  --shadow-md: 4px 4px 0px var(--border-color);
+  --shadow-lg: 6px 6px 0px var(--border-color);
+  --shadow-xl: 8px 8px 0px var(--border-color);
+  
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 30px;
+  --radius-full: 9999px;
+
+  /* Font Families */
+  --font-heading: 'Archivo Black', 'Outfit', system-ui, -apple-system, sans-serif;
+  --font-subheading: 'Outfit', system-ui, -apple-system, sans-serif;
+  --font-body: 'Space Grotesk', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+/* Reset & Box Sizing */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--bg-canvas);
+  color: var(--ink);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background-image: radial-gradient(#e5ded2 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+
+h1, h2, h3, h4, .font-heading {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+h5, h6, .font-subheading {
+  font-family: var(--font-subheading);
+  font-weight: 800;
+}
+
+/* Base Utility Classes */
+.neo-box {
+  background: var(--bg-card);
+  border: var(--border-main);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.15s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.neo-box-interactive {
+  cursor: pointer;
+}
+.neo-box-interactive:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: var(--shadow-lg);
+}
+.neo-box-interactive:active {
+  transform: translate(2px, 2px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Button Neo-Brutalism */
+.neo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-subheading);
+  font-weight: 800;
+  font-size: 15px;
+  padding: 10px 22px;
+  border: var(--border-main);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  text-decoration: none;
+  background: var(--bg-card);
+  color: var(--ink);
+  transition: all 0.12s ease-in-out;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.neo-btn:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.neo-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.neo-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* Button Variants */
+.neo-btn-yellow {
+  background-color: var(--accent-yellow);
+  color: var(--ink);
+}
+.neo-btn-yellow:hover {
+  background-color: #ffd85e;
+}
+
+.neo-btn-pink {
+  background-color: var(--accent-pink);
+  color: #ffffff;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.4);
+}
+.neo-btn-pink:hover {
+  background-color: #ff85b0;
+}
+
+.neo-btn-green {
+  background-color: var(--accent-green);
+  color: var(--ink);
+}
+
+.neo-btn-purple {
+  background-color: var(--accent-purple);
+  color: var(--ink);
+}
+
+.neo-btn-blue {
+  background-color: var(--accent-blue);
+  color: var(--ink);
+}
+
+.neo-btn-black {
+  background-color: var(--ink);
+  color: #FFFFFF;
+}
+.neo-btn-black:hover {
+  background-color: #27272A;
+}
+
+.neo-btn-sm {
+  padding: 6px 14px;
+  font-size: 13px;
+  border-radius: var(--radius-full);
+}
+
+.neo-btn-lg {
+  padding: 14px 28px;
+  font-size: 17px;
+  border-radius: var(--radius-full);
+}
+
+.neo-btn-icon {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: var(--radius-full);
+}
+
+/* Badges & Tags */
+.neo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-family: var(--font-subheading);
+  font-weight: 800;
+  border: var(--border-main);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+  background-color: #ffffff;
+  color: var(--ink);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.neo-badge-yellow { background-color: var(--accent-yellow-light); }
+.neo-badge-pink { background-color: var(--accent-pink-light); }
+.neo-badge-green { background-color: var(--accent-green-light); color: #065F46; }
+.neo-badge-purple { background-color: var(--accent-purple-light); color: #4C1D95; }
+.neo-badge-blue { background-color: var(--accent-blue-light); color: #1E40AF; }
+.neo-badge-black { background-color: var(--ink); color: #ffffff; }
+
+/* Sticker Floating Accents */
+.neo-sticker {
+  display: inline-block;
+  padding: 6px 16px;
+  border: var(--border-main);
+  border-radius: 12px;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  box-shadow: var(--shadow-md);
+  transform: rotate(-3deg);
+  background: var(--accent-yellow);
+}
+.neo-sticker-pink {
+  background: var(--accent-pink);
+  color: white;
+  transform: rotate(3deg);
+}
+.neo-sticker-green {
+  background: var(--accent-green);
+  transform: rotate(-2deg);
+}
+.neo-sticker-purple {
+  background: var(--accent-purple);
+  transform: rotate(4deg);
+}
+
+/* Form Inputs */
+.neo-input {
+  width: 100%;
+  padding: 12px 16px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  border: var(--border-main);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.neo-input:focus {
+  box-shadow: var(--shadow-md);
+  transform: translate(-1px, -1px);
+  border-color: #000;
+  background-color: #FEFCF8;
+}
+
+.neo-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23121212' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 40px;
+}
+
+.neo-label {
+  display: block;
+  font-family: var(--font-subheading);
+  font-weight: 800;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+
+/* Tables */
+.neo-table-container {
+  overflow-x: auto;
+  border: var(--border-main);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  background: #ffffff;
+}
+
+.neo-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+
+.neo-table th {
+  background-color: #FAF4E8;
+  padding: 14px 18px;
+  font-family: var(--font-subheading);
+  font-weight: 900;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: var(--border-main);
+  color: var(--ink);
+}
+
+.neo-table td {
+  padding: 14px 18px;
+  border-bottom: 1.5px solid #e8e2d8;
+  vertical-align: middle;
+  font-weight: 600;
+}
+
+.neo-table tr:last-child td {
+  border-bottom: none;
+}
+
+.neo-table tbody tr:hover {
+  background-color: #FFFDF7;
+}
+
+/* Modal and Drawer Overlays */
+.neo-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(18, 18, 18, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.neo-modal-content {
+  background: #ffffff;
+  border: var(--border-thick);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neo-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(18, 18, 18, 0.55);
+  backdrop-filter: blur(3px);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.neo-drawer-content {
+  background: #ffffff;
+  border-left: var(--border-thick);
+  width: 100%;
+  max-width: 540px;
+  height: 100vh;
+  overflow-y: auto;
+  box-shadow: -8px 0 0 rgba(18,18,18,0.15);
+  animation: slideLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Card Headers */
+.card-header-banner {
+  padding: 16px 20px;
+  border-bottom: var(--border-main);
+  border-top-left-radius: calc(var(--radius-lg) - 3px);
+  border-top-right-radius: calc(var(--radius-lg) - 3px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-subheading);
+  font-weight: 800;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(24px) scale(0.97); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes slideLeft {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-track {
+  background: #FAF4E8;
+  border-left: 2px solid #121212;
+}
+::-webkit-scrollbar-thumb {
+  background: #121212;
+  border-radius: 4px;
+}

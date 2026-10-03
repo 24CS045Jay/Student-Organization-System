@@ -1,0 +1,350 @@
+import React, { useState, useEffect } from 'react';
+import './styles/neo-brutalism.css';
+import { Navbar } from './components/layout/Navbar';
+import { Sidebar } from './components/layout/Sidebar';
+import { QuickLoginModal } from './components/layout/QuickLoginModal';
+import { TenantForbidden403 } from './components/layout/TenantForbidden403';
+import { AICopilotView } from './features/ai/AICopilotView';
+
+// Features
+import { MyMembershipView } from './features/membership/MyMembershipView';
+import { MembersListView } from './features/membership/MembersListView';
+import { MemberVerificationView } from './features/membership/MemberVerificationView';
+
+import { BrowseEventsView } from './features/events/BrowseEventsView';
+import { EventsManagerView } from './features/events/EventsManagerView';
+import { MyTicketsView } from './features/events/MyTicketsView';
+import { QRCheckinView } from './features/events/QRCheckinView';
+import { AttendanceView } from './features/events/AttendanceView';
+
+import { MerchShopView } from './features/merchandise/MerchShopView';
+import { InventoryView } from './features/merchandise/InventoryView';
+import { OrdersView } from './features/merchandise/OrdersView';
+
+import { TasksKanbanView } from './features/volunteers/TasksKanbanView';
+import { VolunteerPortalView } from './features/volunteers/VolunteerPortalView';
+import { LeaderboardView } from './features/volunteers/LeaderboardView';
+import { FundraisersView } from './features/volunteers/FundraisersView';
+
+import { FinancialDashboardView } from './features/finance/FinancialDashboardView';
+import { IncomeView } from './features/finance/IncomeView';
+import { ExpensesView } from './features/finance/ExpensesView';
+import { ReimbursementsView } from './features/finance/ReimbursementsView';
+import { SponsorsView } from './features/finance/SponsorsView';
+import { DonationsView } from './features/finance/DonationsView';
+
+import { AnnouncementsView } from './features/communication/AnnouncementsView';
+import { ReportsHubView } from './features/reports/ReportsHubView';
+import { CertificatesView } from './features/certificates/CertificatesView';
+import { FeedbackView } from './features/feedback/FeedbackView';
+
+import { PlatformSuperAdminView } from './features/platform/PlatformSuperAdminView';
+import { AuditLogView } from './features/audit/AuditLogView';
+import { SettingsView } from './features/settings/SettingsView';
+import { DesignSystemShowcaseView } from './features/design_system/DesignSystemShowcaseView';
+import { ClubDashboardView } from './features/dashboard/ClubDashboardView';
+
+import { clubService } from './services/clubService';
+import { dbInstance } from './mock/db';
+import { Drawer, Badge, Button } from './components/ui/index';
+import { Bell, CheckCircle2, Sparkles, X } from 'lucide-react';
+
+export default function App() {
+  // Session State (Stored in localStorage or initial admin demo)
+  const [session, setSession] = useState(() => {
+    try {
+      const saved = localStorage.getItem('clubsphere_session');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      role: 'admin',
+      orgId: 'tech',
+      email: 'admin@tech.demo',
+      name: 'Club Admin (TECH)'
+    };
+  });
+
+  const [activeTab, setActiveTab] = useState('club-dash');
+  const [isQuickLoginOpen, setIsQuickLoginOpen] = useState(false);
+  const [isAICopilotDrawerOpen, setIsAICopilotDrawerOpen] = useState(false);
+  const [isNotifsOpen, setIsNotifsOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
+  const [dataVersion, setDataVersion] = useState(0);
+
+  // Active Club Data
+  const activeClub = session.orgId === 'platform' 
+    ? { id: 'tech', name: 'Platform Root', short: 'Platform', color: '#FFD24C' } 
+    : clubService.getClub(session.orgId);
+
+  // Save session changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('clubsphere_session', JSON.stringify(session));
+    } catch (e) {}
+  }, [session]);
+
+  const handleToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((prev) => (prev === msg ? null : prev));
+    }, 3800);
+  };
+
+  const handleDataChange = () => {
+    setDataVersion(v => v + 1);
+  };
+
+  const handleClubChange = (newOrgId) => {
+    setSession(prev => ({
+      ...prev,
+      orgId: newOrgId,
+      email: prev.role === 'super_admin' ? prev.email : `${prev.role}@${newOrgId}.demo`
+    }));
+    handleToast(`🏢 Switched context to ${dbInstance.data.clubs[newOrgId]?.name}`);
+  };
+
+  const handleRoleAndClubSelect = ({ role, orgId, email, name, homeTab }) => {
+    setSession({ role, orgId, email, name });
+    setActiveTab(homeTab);
+    handleToast(`⚡ Logged in as ${name} (${role.toUpperCase()})`);
+  };
+
+  const handleResetDb = () => {
+    dbInstance.reset();
+    setDataVersion(v => v + 1);
+    handleToast('🔄 Mock Database has been restored to factory seed state.');
+  };
+
+  // Role Permissions Mapping for RoleGuard
+  const roleAllowedTabs = {
+    student: ['my-membership', 'browse-events', 'my-tickets', 'merch-shop', 'my-orders', 'my-certificates', 'announcements-feed', 'feedback', 'design-system'],
+    volunteer: ['tasks-kanban', 'volunteer-portal', 'my-reimbursements', 'leaderboard', 'announcements-feed', 'design-system'],
+    event_manager: ['events-list', 'qr-checkin', 'attendance', 'event-profit', 'reports-hub', 'feedback', 'announcements-mgmt', 'design-system'],
+    treasurer: ['financial-dash', 'income-ledger', 'expenses-ledger', 'reimbursements-mgmt', 'budget-mgmt', 'sponsors', 'donations', 'reports-hub', 'design-system'],
+    admin: [
+      'club-dash', 'members-list', 'member-verify', 'events-list', 'inventory', 'fundraisers',
+      'volunteers-list', 'financial-dash', 'reports-hub', 'announcements-mgmt', 'sponsors',
+      'certificates-mgmt', 'ai-copilot', 'audit-log', 'settings', 'qr-checkin', 'attendance',
+      'reimbursements-mgmt', 'design-system'
+    ],
+    super_admin: ['saas-orgs', 'saas-plans', 'saas-analytics', 'saas-modules', 'audit-log', 'settings', 'design-system']
+  };
+
+  const isTabAllowed = (roleAllowedTabs[session.role] || []).includes(activeTab) || activeTab === 'design-system';
+
+  // Render current tab content
+  const renderTabContent = () => {
+    if (!isTabAllowed) {
+      return (
+        <TenantForbidden403
+          userRole={session.role}
+          userOrg={session.orgId}
+          requiredRole="Authorized Role"
+          onResetToHome={() => {
+            const homeMap = {
+              student: 'my-membership',
+              volunteer: 'tasks-kanban',
+              event_manager: 'events-list',
+              treasurer: 'financial-dash',
+              admin: 'club-dash',
+              super_admin: 'saas-orgs'
+            };
+            setActiveTab(homeMap[session.role] || 'club-dash');
+          }}
+          onOpenQuickLogin={() => setIsQuickLoginOpen(true)}
+        />
+      );
+    }
+
+    switch (activeTab) {
+      case 'club-dash':
+        return <ClubDashboardView session={session} activeClub={activeClub} onNavigate={setActiveTab} />;
+      case 'my-membership':
+        return <MyMembershipView session={session} activeClub={activeClub} onRenewSuccess={handleDataChange} onNavigate={setActiveTab} />;
+      case 'members-list':
+        return <MembersListView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
+      case 'member-verify':
+        return <MemberVerificationView session={session} activeClub={activeClub} onToast={handleToast} />;
+      case 'browse-events':
+        return <BrowseEventsView session={session} activeClub={activeClub} onToast={handleToast} onNavigate={setActiveTab} />;
+      case 'events-list':
+      case 'event-profit':
+        return <EventsManagerView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} onNavigate={setActiveTab} />;
+      case 'my-tickets':
+        return <MyTicketsView session={session} activeClub={activeClub} onToast={handleToast} onNavigate={setActiveTab} />;
+      case 'qr-checkin':
+        return <QRCheckinView session={session} activeClub={activeClub} onToast={handleToast} />;
+      case 'attendance':
+        return <AttendanceView session={session} activeClub={activeClub} onToast={handleToast} />;
+      case 'merch-shop':
+        return <MerchShopView session={session} activeClub={activeClub} onToast={handleToast} onNavigate={setActiveTab} />;
+      case 'inventory':
+        return <InventoryView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
+      case 'my-orders':
+        return <OrdersView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
+      case 'tasks-kanban':
+        return <TasksKanbanView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
+      case 'volunteer-portal':
+      case 'volunteers-list':
+        return <VolunteerPortalView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
+      case 'leaderboard':
+        return <LeaderboardView session={session} activeClub={activeClub} />;
+      case 'fundraisers':
+        return <FundraisersView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
+      case 'financial-dash':
+      case 'budget-mgmt':
+        return <FinancialDashboardView session={session} activeClub={activeClub} onToast={handleToast} onNavigate={setActiveTab} />;
+      case 'income-ledger':
+        return <IncomeView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
+      case 'expenses-ledger':
+        return <ExpensesView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
+      case 'reimbursements-mgmt':
+      case 'my-reimbursements':
+        return <ReimbursementsView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
+      case 'sponsors':
+        return <SponsorsView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
+      case 'donations':
+        return <DonationsView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
+      case 'announcements-feed':
+      case 'announcements-mgmt':
+        return <AnnouncementsView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
+      case 'reports-hub':
+        return <ReportsHubView session={session} activeClub={activeClub} onToast={handleToast} />;
+      case 'certificates-mgmt':
+      case 'my-certificates':
+        return <CertificatesView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
+      case 'feedback':
+        return <FeedbackView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
+      case 'ai-copilot':
+        return <AICopilotView session={session} activeClub={activeClub} />;
+      case 'saas-orgs':
+      case 'saas-plans':
+      case 'saas-modules':
+      case 'saas-analytics':
+        return <PlatformSuperAdminView session={session} onToast={handleToast} />;
+      case 'audit-log':
+        return <AuditLogView session={session} activeClub={activeClub} onToast={handleToast} />;
+      case 'settings':
+        return <SettingsView session={session} activeClub={activeClub} onToast={handleToast} onResetDb={handleResetDb} />;
+      case 'design-system':
+        return <DesignSystemShowcaseView />;
+      default:
+        return <ClubDashboardView session={session} activeClub={activeClub} onNavigate={setActiveTab} />;
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Top Navbar */}
+      <Navbar
+        session={session}
+        activeClub={activeClub}
+        onClubChange={handleClubChange}
+        onOpenRoleSwitcher={() => setIsQuickLoginOpen(true)}
+        onOpenQuickLogin={() => setIsQuickLoginOpen(true)}
+        onToggleAICopilot={() => setIsAICopilotDrawerOpen(true)}
+        unreadNotifsCount={dbInstance.data.notifications.filter(n => n.unread).length}
+        onOpenNotifs={() => setIsNotifsOpen(true)}
+      />
+
+      {/* Main Workspace Layout */}
+      <div style={{ display: 'flex', flex: 1 }}>
+        <Sidebar
+          role={session.role}
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          clubName={activeClub.name}
+        />
+
+        <main style={{ flex: 1, padding: '28px', maxWidth: '1440px', margin: '0 auto', width: '100%' }}>
+          {renderTabContent()}
+        </main>
+      </div>
+
+      {/* Quick Demo Login & Role Switcher Modal */}
+      <QuickLoginModal
+        isOpen={isQuickLoginOpen}
+        onClose={() => setIsQuickLoginOpen(false)}
+        currentSession={session}
+        onSelectRoleAndClub={handleRoleAndClubSelect}
+      />
+
+      {/* Slide-out AI Copilot Drawer */}
+      {isAICopilotDrawerOpen && (
+        <AICopilotView
+          session={session}
+          activeClub={activeClub}
+          isDrawer={true}
+          onClose={() => setIsAICopilotDrawerOpen(false)}
+        />
+      )}
+
+      {/* Slide-out Notifications Drawer */}
+      <Drawer
+        isOpen={isNotifsOpen}
+        onClose={() => setIsNotifsOpen(false)}
+        title="🔔 Live Platform Notifications"
+        headerColor="var(--accent-yellow)"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {dbInstance.data.notifications.map((n) => (
+            <div
+              key={n.id}
+              style={{
+                padding: '14px',
+                backgroundColor: n.unread ? '#FEF9C3' : '#FAF5EE',
+                border: '2px solid #000',
+                borderRadius: '12px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                <h4 style={{ fontSize: '14px', fontWeight: 900, margin: 0 }}>{n.title}</h4>
+                <span style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 700 }}>{n.time}</span>
+              </div>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink)' }}>{n.message}</p>
+            </div>
+          ))}
+        </div>
+      </Drawer>
+
+      {/* Floating Neo-Brutalist Toast Alert */}
+      {toastMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            backgroundColor: '#FFD24C',
+            color: '#121212',
+            border: '3px solid #121212',
+            borderRadius: '16px',
+            padding: '14px 20px',
+            boxShadow: '6px 6px 0px #121212',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontFamily: 'var(--font-subheading)',
+            fontWeight: 900,
+            fontSize: '14px',
+            animation: 'slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}
+        >
+          <span>{toastMessage}</span>
+          <button
+            onClick={() => setToastMessage(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: 900,
+              fontSize: '16px'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
