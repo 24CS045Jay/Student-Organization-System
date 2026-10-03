@@ -38,12 +38,25 @@ export const MemberVerificationView = ({ session, activeClub, onToast }) => {
           canvas.height = img.height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const decoded = decodeInAppQR(imageData);
+          let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          let decoded = decodeInAppQR(imageData);
+
+          if (!decoded && (img.width > 700 || img.height > 700)) {
+            const scale = Math.min(600 / img.width, 600 / img.height);
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const scaledData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            decoded = decodeInAppQR(scaledData);
+          }
 
           if (decoded && decoded.code) {
-            setQueryId(decoded.code);
-            handleVerify(decoded.code);
+            const cleanCode = decoded.code
+              .replace(/^CLUBSPHERE:(PASS|TICKET|MEMBER):/i, '')
+              .replace(/^CS-APP:\/\/[^/]+\//i, '')
+              .trim();
+            setQueryId(cleanCode);
+            handleVerify(cleanCode);
           } else {
             alert('Could not decode QR code from this image. Please ensure the QR is clear and well lit.');
           }

@@ -142,6 +142,7 @@ export const QRCheckinView = ({ session, activeClub, onToast }) => {
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             if (ctx) {
               ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
               const decoded = decodeInAppQR(imageData);
               if (decoded && decoded.code) {
                 scanningLockRef.current = true;
@@ -173,8 +174,14 @@ export const QRCheckinView = ({ session, activeClub, onToast }) => {
   }, [useLiveCamera, selectedEventId]);
 
   const handleProcessScan = (code) => {
-    const target = (code || ticketQuery).trim();
+    let target = (code || ticketQuery).trim();
     if (!target || isProcessing) return;
+
+    // Sanitize any wrapper tokens or whitespace
+    target = target
+      .replace(/^CLUBSPHERE:(PASS|TICKET|MEMBER):/i, '')
+      .replace(/^CS-APP:\/\/[^/]+\//i, '')
+      .trim();
 
     setIsProcessing(true);
     setActiveStep(1);
@@ -228,9 +235,20 @@ export const QRCheckinView = ({ session, activeClub, onToast }) => {
           canvas.height = img.height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-          const decoded = decodeInAppQR(imageData);
+          let decoded = decodeInAppQR(imageData);
+
+          // If not detected at original resolution, scale down to 600px width (standard QR sweet-spot)
+          if (!decoded && (img.width > 700 || img.height > 700)) {
+            const scale = Math.min(600 / img.width, 600 / img.height);
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const scaledData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            decoded = decodeInAppQR(scaledData);
+          }
+
           if (decoded && decoded.code) {
             handleProcessScan(decoded.code);
           } else {
