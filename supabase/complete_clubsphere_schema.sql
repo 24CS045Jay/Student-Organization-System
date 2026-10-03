@@ -895,10 +895,31 @@ left join tickets t on t.event_id = e.id
 group by e.id, e.org_id, e.title, e.capacity, e.tickets_sold;
 
 -- ---------------------------------------------------------------------
+-- PART 12B: VOLUNTEER SERVICE HOURS & RATING TABLE
+-- ---------------------------------------------------------------------
+create table if not exists volunteers (
+  id text primary key,
+  org_id uuid not null references organizations(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete set null,
+  name text not null,
+  email text not null,
+  phone text,
+  role_title text default 'Volunteer',
+  service_hours integer default 0,
+  badge_tier text default 'Bronze Contributor',
+  rating numeric(3,2) default 5.00,
+  skills jsonb default '[]'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- ---------------------------------------------------------------------
 -- PART 13: ROW LEVEL SECURITY (RLS) POLICIES
 -- ---------------------------------------------------------------------
 alter table organizations enable row level security;
 alter table organizations force row level security;
+alter table volunteers enable row level security;
+alter table volunteers force row level security;
 alter table membership_types enable row level security;
 alter table membership_types force row level security;
 alter table members enable row level security;
