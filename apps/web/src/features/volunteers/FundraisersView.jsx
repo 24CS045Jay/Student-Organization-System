@@ -21,15 +21,12 @@ export const FundraisersView = ({ session, activeClub, onDataChange, onToast }) 
         {
           donorName,
           amount: Number(donateAmt),
+          campaignId: selectedFund?.id,
           campaign: selectedFund?.title || 'Fundraiser',
           anonymous: isAnon
         },
         session
       );
-      if (selectedFund) {
-        selectedFund.raised += Number(donateAmt);
-        selectedFund.donorCount += 1;
-      }
       setIsDonateOpen(false);
       if (onToast) onToast(`❤️ Thank you! Donation of ₹${donateAmt} recorded!`);
       if (onDataChange) onDataChange();

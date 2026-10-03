@@ -30,6 +30,104 @@ export const CertificatesView = ({ session, activeClub, onDataChange, onToast })
     }
   };
 
+  const handlePrintCertificate = (cert) => {
+    if (!cert) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Please allow popups to print/download the certificate.');
+      return;
+    }
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Certificate - ${cert.studentName} - ${cert.id}</title>
+        <style>
+          @page { size: landscape; margin: 15mm; }
+          body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #FAF5EE;
+            margin: 0;
+            padding: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 90vh;
+          }
+          .cert-container {
+            border: 6px solid #121212;
+            padding: 50px 60px;
+            max-width: 880px;
+            width: 100%;
+            background: #FFFFFF;
+            box-shadow: 10px 10px 0px #121212;
+            border-radius: 20px;
+            text-align: center;
+            box-sizing: border-box;
+          }
+          .badge {
+            display: inline-block;
+            background: #121212;
+            color: #FFFFFF;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            padding: 6px 18px;
+            border-radius: 999px;
+            margin-bottom: 20px;
+          }
+          h2 { font-size: 26px; font-weight: 900; color: #7C3AED; margin: 0 0 14px; text-transform: uppercase; }
+          p { font-size: 15px; color: #52525B; font-weight: 600; line-height: 1.6; margin: 10px 0; }
+          .recipient { font-size: 36px; font-weight: 900; color: #121212; text-decoration: underline; margin: 16px 0; }
+          .footer {
+            margin-top: 36px;
+            border-top: 2px dashed #121212;
+            padding-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .sign-box { text-align: left; }
+          .sign-title { font-weight: 900; font-size: 15px; }
+          .sign-sub { font-size: 12px; color: #71717A; }
+          .hash-box { text-align: right; }
+        </style>
+      </head>
+      <body>
+        <div class="cert-container">
+          <div class="badge">CAMPUS STUDENT ACTIVITIES • VERIFIED CREDENTIAL</div>
+          <h2>${cert.type}</h2>
+          <p>This certifies that</p>
+          <div class="recipient">${cert.studentName}</div>
+          <p>has successfully participated and achieved distinction in <strong>${cert.eventName}</strong> organized by ${activeClub.name}.</p>
+          <div class="footer">
+            <div class="sign-box">
+              <div class="sign-title">Club Executive Directorate</div>
+              <div class="sign-sub">Authorized Institutional Signatory</div>
+              <div class="sign-sub" style="margin-top:4px;">Credential ID: ${cert.id}</div>
+            </div>
+            <div class="hash-box">
+              <div class="sign-title">Issued: ${cert.issueDate}</div>
+              <div class="sign-sub">Cryptographic Token: ${cert.qrCode ? cert.qrCode.substring(0, 22) + '...' : 'VERIFIED'}</div>
+              <div class="sign-sub" style="color: #059669; font-weight: 800; margin-top:4px;">✓ Authenticity Verified</div>
+            </div>
+          </div>
+        </div>
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 300);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
+    if (onToast) onToast(`📄 Generating high-res certificate for ${cert.studentName}...`);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
@@ -136,12 +234,12 @@ export const CertificatesView = ({ session, activeClub, onDataChange, onToast })
               variant="yellow"
               style={{ width: '100%', marginTop: '20px' }}
               onClick={() => {
+                handlePrintCertificate(selectedCert);
                 setSelectedCert(null);
-                if (onToast) onToast('📄 Certificate PDF downloaded.');
               }}
               icon={Download}
             >
-              Download Printable Certificate
+              Download / Print Official Certificate
             </Button>
           </div>
         )}
