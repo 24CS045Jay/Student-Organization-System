@@ -28,14 +28,15 @@ import { dbInstance, inr } from '../../mock/db';
 export const SuperAdminClubCreationView = ({ onBack, onClubCreated }) => {
   // Super Admin Password Protection (Master Password: 12345678)
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return sessionStorage.getItem('cs_superadmin_auth') === '1';
+    return localStorage.getItem('cs_superadmin_auth') === '1';
   });
   const [inputPassword, setInputPassword] = useState('');
   const [authError, setAuthError] = useState(null);
 
-  const [activeTab, setActiveTab] = useState('create'); // 'create' | 'manage'
+  const [activeTab, setActiveTab] = useState('create'); // 'create' | 'manage' | 'users'
   const [selectedClubForDetails, setSelectedClubForDetails] = useState(null);
   const [clubsList, setClubsList] = useState(() => Object.values(dbInstance.data.clubs || {}));
+  const [usersList, setUsersList] = useState(() => dbInstance.getAllUsers());
 
   const [formData, setFormData] = useState({
     name: '',
@@ -64,7 +65,7 @@ export const SuperAdminClubCreationView = ({ onBack, onClubCreated }) => {
 
     if (inputPassword === '12345678') {
       setIsAuthenticated(true);
-      sessionStorage.setItem('cs_superadmin_auth', '1');
+      localStorage.setItem('cs_superadmin_auth', '1');
       setInputPassword('');
     } else {
       setAuthError('❌ Incorrect Super Admin password. Access denied.');
@@ -73,7 +74,7 @@ export const SuperAdminClubCreationView = ({ onBack, onClubCreated }) => {
 
   const handleSuperAdminLogout = () => {
     setIsAuthenticated(false);
-    sessionStorage.removeItem('cs_superadmin_auth');
+    localStorage.removeItem('cs_superadmin_auth');
   };
 
   const handleDomainAutoFill = (val) => {
@@ -320,10 +321,16 @@ export const SuperAdminClubCreationView = ({ onBack, onClubCreated }) => {
             + Onboard New Club
           </button>
           <button
-            onClick={() => setActiveTab('manage')}
+            onClick={() => { setActiveTab('manage'); setClubsList(Object.values(dbInstance.data.clubs || {})); }}
             className={`neo-btn neo-btn-sm ${activeTab === 'manage' ? 'neo-btn-yellow' : 'neo-btn-white'}`}
           >
             Manage Existing Clubs ({clubsList.length})
+          </button>
+          <button
+            onClick={() => { setActiveTab('users'); setUsersList(dbInstance.getAllUsers()); }}
+            className={`neo-btn neo-btn-sm ${activeTab === 'users' ? 'neo-btn-yellow' : 'neo-btn-white'}`}
+          >
+            👥 User Accounts & Assigned Emails ({usersList.length})
           </button>
           <button
             onClick={handleSuperAdminLogout}
@@ -794,6 +801,74 @@ export const SuperAdminClubCreationView = ({ onBack, onClubCreated }) => {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* TAB 3: ALL USERS & GENERATED EMAILS REGISTRY */}
+        {activeTab === 'users' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ fontSize: '24px', fontWeight: 900, margin: 0 }}>
+                  Centralized User Accounts & Assigned Emails ({usersList.length})
+                </h2>
+                <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)' }}>
+                  Complete registry of student personal emails mapped to platform-assigned official club login emails.
+                </p>
+              </div>
+              <button
+                onClick={() => setUsersList(dbInstance.getAllUsers())}
+                className="neo-btn neo-btn-white neo-btn-sm"
+              >
+                Refresh List
+              </button>
+            </div>
+
+            {usersList.length === 0 ? (
+              <div className="neo-box" style={{ backgroundColor: '#FFFFFF', padding: '48px', textAlign: 'center' }}>
+                <h3 style={{ margin: 0 }}>No users registered yet.</h3>
+                <p style={{ fontSize: '13px', color: 'var(--ink-muted)', marginTop: '8px' }}>
+                  When students sign up on the portal or when new clubs are onboarded, accounts appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="neo-box" style={{ backgroundColor: '#FFFFFF', padding: '20px', overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2.5px solid #121212', backgroundColor: '#FAF5EE' }}>
+                      <th style={{ padding: '12px 14px', fontWeight: 900 }}>User Name</th>
+                      <th style={{ padding: '12px 14px', fontWeight: 900 }}>Personal Signup Email</th>
+                      <th style={{ padding: '12px 14px', fontWeight: 900 }}>Assigned Official Club Email</th>
+                      <th style={{ padding: '12px 14px', fontWeight: 900 }}>Role</th>
+                      <th style={{ padding: '12px 14px', fontWeight: 900 }}>Club Organization</th>
+                      <th style={{ padding: '12px 14px', fontWeight: 900 }}>Password</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usersList.map((u) => (
+                      <tr key={u.id || u.clubEmail} style={{ borderBottom: '1px solid #E5E7EB' }}>
+                        <td style={{ padding: '12px 14px', fontWeight: 800 }}>{u.name}</td>
+                        <td style={{ padding: '12px 14px', color: 'var(--ink-muted)', fontWeight: 700 }}>{u.personalEmail}</td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <code style={{ color: '#2563EB', fontWeight: 900, fontSize: '13px', backgroundColor: '#EFF6FF', padding: '3px 6px', borderRadius: '4px' }}>
+                            {u.clubEmail}
+                          </code>
+                        </td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <span className="neo-badge neo-badge-yellow" style={{ fontSize: '10px' }}>
+                            {u.role.toUpperCase()}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 14px', fontWeight: 700 }}>{u.clubName || u.orgId}</td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <code style={{ fontWeight: 800 }}>{u.password}</code>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </main>
