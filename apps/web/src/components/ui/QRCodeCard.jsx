@@ -1,43 +1,10 @@
 import React, { useState } from 'react';
 import { Badge, Button } from './index';
 import { Check, Copy, QrCode, ShieldCheck, Sparkles } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 // Generates an SVG pseudo-QR matrix pattern deterministic for any string code
 export const NeoQRCode = ({ code = 'TC-001', size = 150, color = '#121212' }) => {
-  // Simple deterministic pseudo-random grid generator based on string hash
-  const getHash = (str) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i);
-      hash |= 0;
-    }
-    return Math.abs(hash);
-  };
-
-  const gridSize = 11;
-  const hash = getHash(code);
-  const matrix = [];
-
-  for (let r = 0; r < gridSize; r++) {
-    const row = [];
-    for (let c = 0; c < gridSize; c++) {
-      // Corner alignment squares (standard QR look)
-      if ((r < 3 && c < 3) || (r < 3 && c > gridSize - 4) || (r > gridSize - 4 && c < 3)) {
-        if ((r === 1 && c === 1) || (r === 1 && c === gridSize - 2) || (r === gridSize - 2 && c === 1)) {
-          row.push(0);
-        } else {
-          row.push(1);
-        }
-      } else {
-        const bit = ((hash ^ (r * 19 + c * 31)) % 100) > 42 ? 1 : 0;
-        row.push(bit);
-      }
-    }
-    matrix.push(row);
-  }
-
-  const cellSize = size / gridSize;
-
   return (
     <div
       style={{
@@ -52,31 +19,13 @@ export const NeoQRCode = ({ code = 'TC-001', size = 150, color = '#121212' }) =>
         gap: '8px'
       }}
     >
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        {matrix.map((row, rIdx) =>
-          row.map((cell, cIdx) => {
-            if (!cell) return null;
-            return (
-              <rect
-                key={`${rIdx}-${cIdx}`}
-                x={cIdx * cellSize}
-                y={rIdx * cellSize}
-                width={cellSize - 0.8}
-                height={cellSize - 0.8}
-                rx={cellSize > 12 ? 2.5 : 1}
-                fill={color}
-              />
-            );
-          })
-        )}
-      </svg>
+      <QRCodeSVG value={code} size={size} fgColor={color} />
       <span style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: '12px', letterSpacing: '0.08em', color: '#121212' }}>
         {code}
       </span>
     </div>
   );
 };
-
 // Digital Member Pass (FR-01, FR-02, Item C)
 export const DigitalMemberCard = ({
   member,

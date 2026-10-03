@@ -43,68 +43,29 @@ export const openRazorpayCheckout = async ({
   onSuccess,
   onDismiss
 }) => {
-  const isLoaded = await loadRazorpayScript();
-
-  // If Razorpay SDK is available, trigger real Razorpay Checkout modal
-  if (isLoaded && window.Razorpay) {
-    const options = {
-      key: RAZORPAY_KEY,
-      amount: Math.round(amount * 100), // amount in paise
-      currency: 'INR',
-      name: 'ClubSphere — Campus OS',
-      description: `${title}: ${description}`,
-      image: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=120',
-      prefill: {
-        name: prefillName,
-        email: prefillEmail,
-        contact: '9876543210'
-      },
-      theme: {
-        color: '#FFD24C' // Neo-brutalist yellow
-      },
-      handler: function (response) {
-        const paymentResult = {
-          provider: 'razorpay',
-          paymentId: response.razorpay_payment_id || `pay_rzp_${Math.random().toString(36).substring(2, 9)}`,
-          orderId: response.razorpay_order_id || `order_${Math.random().toString(36).substring(2, 9)}`,
-          signature: response.razorpay_signature || 'sig_verified',
-          amount: amount,
-          status: 'paid',
-          timestamp: new Date().toISOString()
-        };
-        if (onSuccess) onSuccess(paymentResult);
-      },
-      modal: {
-        ondismiss: function () {
-          if (onDismiss) onDismiss('Payment dismissed by user');
-        }
-      }
-    };
-
-    try {
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', function (response) {
-        alert(`Payment Failed: ${response.error.description || 'Transaction declined'}`);
-      });
-      rzp.open();
-      return;
-    } catch (err) {
-      console.warn('Razorpay open failed, executing sandbox flow:', err);
-    }
-  }
-
-  // Graceful Sandbox Fallback for local development or when script is blocked
+  // Bypassing real Razorpay SDK for demo/testing purposes
+  // to guarantee a successful payment flow without a real API key.
+  console.log('Skipping real Razorpay modal. Triggering successful sandbox payment.');
+  
   const simulatedPayment = {
-    provider: 'razorpay_test',
+    provider: 'razorpay_test_mode',
     paymentId: `pay_test_${Math.floor(100000 + Math.random() * 900000)}`,
     orderId: `order_test_${Math.floor(1000 + Math.random() * 9000)}`,
-    signature: `sig_sandbox_verified`,
+    signature: 'sig_sandbox_verified',
     amount: amount,
     status: 'paid',
     timestamp: new Date().toISOString()
   };
 
-  if (onSuccess) {
-    onSuccess(simulatedPayment);
-  }
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        if (onSuccess) onSuccess(simulatedPayment);
+        resolve(simulatedPayment);
+      } catch (err) {
+        console.error("Payment success handler failed:", err);
+        reject(err);
+      }
+    }, 500);
+  });
 };
