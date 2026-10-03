@@ -33,3 +33,4 @@ dist-ssr
 
 # Nested repositories or scratch directories
 Student-Organization-System/
+.vercel
