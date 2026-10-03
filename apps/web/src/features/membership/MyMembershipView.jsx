@@ -147,13 +147,13 @@ export const MyMembershipView = ({ session, activeClub, onRenewSuccess, onNaviga
               <Badge variant="purple" style={{ marginBottom: '8px' }}>
                 Recommended for You
               </Badge>
-              <h3 style={{ fontSize: '16px', fontWeight: 900 }}>{club.events?.[0]?.title || 'Annual Flagship Hackathon & Workshop'}</h3>
+              <h3 style={{ fontSize: '16px', fontWeight: 900 }}>{activeClub.events?.[0]?.title || 'Annual Flagship Hackathon & Workshop'}</h3>
               <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-muted)', margin: '4px 0 12px' }}>
-                {club.events?.[0]?.description?.substring(0, 100) || 'Connect with campus peers, build real projects, and earn exclusive club certificates!'}...
+                {activeClub.events?.[0]?.description?.substring(0, 100) || 'Connect with campus peers, build real projects, and earn exclusive club certificates!'}...
               </p>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 900, fontSize: '15px' }}>
-                  Member Price: <span style={{ color: '#059669' }}>{club.events?.[0] ? `₹${club.events[0].memberPrice}` : '₹150'}</span>
+                  Member Price: <span style={{ color: '#059669' }}>{activeClub.events?.[0] ? `₹${activeClub.events[0].memberPrice}` : '₹150'}</span>
                 </span>
                 <Button variant="pink" size="sm" onClick={() => onNavigate && onNavigate('browse-events')}>
                   Get Ticket
