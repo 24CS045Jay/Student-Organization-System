@@ -6,6 +6,7 @@ import { MessageSquare, Star, Plus, ThumbsUp, Send } from 'lucide-react';
 export const FeedbackView = ({ session, activeClub, onDataChange, onToast }) => {
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [ratingOverall, setRatingOverall] = useState(5);
+  const [commentText, setCommentText] = useState('');
   const club = clubService.getClub(activeClub.id);
   const feedbackList = club.feedback || [];
   const [eventChoice, setEventChoice] = useState(() => club.events?.[0]?.title || 'Club Workshop & Event');
@@ -73,6 +74,20 @@ export const FeedbackView = ({ session, activeClub, onDataChange, onToast }) => 
       </div>
 
       {/* Reviews Grid */}
+      {feedbackList.length === 0 ? (
+        <Card title="No Reviews Yet" headerBg="var(--accent-yellow)">
+          <div style={{ textAlign: 'center', padding: '36px 0' }}>
+            <div style={{ fontSize: '42px', marginBottom: '8px' }}>💬</div>
+            <h3 style={{ fontSize: '18px', fontWeight: 900, marginBottom: '6px' }}>No Event Reviews Submitted Yet</h3>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)', marginBottom: '14px' }}>
+              Attended a recent club workshop or fest? Share your 5-star experience with the team!
+            </p>
+            <Button variant="yellow" size="sm" onClick={() => setIsSubmitOpen(true)} icon={Plus}>
+              Write First Review
+            </Button>
+          </div>
+        </Card>
+      ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         {feedbackList.map((fb) => (
           <Card
@@ -90,6 +105,7 @@ export const FeedbackView = ({ session, activeClub, onDataChange, onToast }) => 
           </Card>
         ))}
       </div>
+      )}
 
       {/* Feedback Modal */}
       <Modal

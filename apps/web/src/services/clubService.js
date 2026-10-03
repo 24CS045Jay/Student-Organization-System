@@ -176,6 +176,23 @@ export const clubService = {
     return [...club.events];
   },
 
+  getAllEvents: () => {
+    const allClubs = Object.values(dbInstance.data.clubs || {});
+    const list = [];
+    allClubs.forEach(club => {
+      (club.events || []).forEach(ev => {
+        list.push({
+          ...ev,
+          clubId: club.id,
+          clubName: club.name,
+          clubPrefix: club.prefix,
+          clubColor: club.color || '#FFE853'
+        });
+      });
+    });
+    return list;
+  },
+
   createEvent: (orgId, eventData, session) => {
     const club = dbInstance.getClub(orgId);
     const newEvent = {
@@ -189,7 +206,7 @@ export const clubService = {
       sold: 0,
       memberPrice: Number(eventData.memberPrice) || 0,
       nonMemberPrice: Number(eventData.nonMemberPrice) || 100,
-      status: eventData.status || 'Draft',
+      status: eventData.status || 'Published',
       description: eventData.description,
       deadline: eventData.deadline || `${eventData.date} 23:59`,
       organizer: eventData.organizer || `${club.name} Team`,
@@ -200,7 +217,45 @@ export const clubService = {
     club.events.unshift(newEvent);
     dbInstance.logAudit(orgId, session?.email, session?.role, 'Created Event', `Created event "${newEvent.title}"`, 'None', newEvent.id);
     dbInstance.save();
+    supabaseSync.syncEvent(orgId, newEvent);
     return newEvent;
+  },
+
+  updateEventStatus: (orgId, eventId, status, session) => {
+    const club = dbInstance.getClub(orgId);
+    const event = club.events.find(e => e.id === eventId);
+    if (!event) throw new Error('Event not found');
+    const oldStatus = event.status;
+    event.status = status;
+    dbInstance.logAudit(orgId, session?.email, session?.role, 'Updated Event Status', `Changed event "${event.title}" status to ${status}`, oldStatus, status);
+    dbInstance.save();
+    supabaseSync.syncEvent(orgId, event);
+    return event;
+  },
+
+  publishEvent: (orgId, eventId, session) => {
+    return clubService.updateEventStatus(orgId, eventId, 'Published', session);
+  },
+
+  updateEvent: (orgId, eventId, updatedData, session) => {
+    const club = dbInstance.getClub(orgId);
+    const event = club.events.find(e => e.id === eventId);
+    if (!event) throw new Error('Event not found');
+    Object.assign(event, updatedData);
+    dbInstance.logAudit(orgId, session?.email, session?.role, 'Updated Event', `Updated event "${event.title}"`, '', '');
+    dbInstance.save();
+    supabaseSync.syncEvent(orgId, event);
+    return event;
+  },
+
+  deleteEvent: (orgId, eventId, session) => {
+    const club = dbInstance.getClub(orgId);
+    const index = club.events.findIndex(e => e.id === eventId);
+    if (index === -1) throw new Error('Event not found');
+    const removed = club.events.splice(index, 1)[0];
+    dbInstance.logAudit(orgId, session?.email, session?.role, 'Deleted Event', `Deleted event "${removed.title}"`, removed.id, '');
+    dbInstance.save();
+    return removed;
   },
 
   buyTicket: (orgId, eventId, attendeeInfo, session, paymentDetails = null) => {

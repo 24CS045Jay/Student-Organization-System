@@ -20,7 +20,46 @@ export const INITIAL_CLUBS_DATA = {
     accentColor: '#FFE853',
     emailDomain: '@tech.campus.edu',
     members: [],
-    events: [],
+    events: [
+      {
+        id: 'ev-tc-01',
+        title: 'CHARUSAT 24h Hackathon 2026',
+        category: 'Hackathon',
+        date: '2026-10-18',
+        time: '09:00 AM',
+        location: 'Central Computing Lab & Auditorium B',
+        capacity: 200,
+        sold: 64,
+        memberPrice: 150,
+        nonMemberPrice: 350,
+        status: 'Published',
+        description: '24 hours of non-stop innovation, building AI agents and full-stack solutions with top mentors & prize pool of ₹1,00,000.',
+        deadline: '2026-10-17 23:59',
+        organizer: 'Tech Club Executive Team',
+        bannerGradient: 'linear-gradient(135deg, #FFE853 0%, #FF70A6 100%)',
+        budget: { venue: 20000, food: 25000, prizes: 30000 },
+        tags: ['Hackathon', 'AI', 'Coding']
+      },
+      {
+        id: 'ev-tc-02',
+        title: 'Generative AI & LLM Systems Workshop',
+        category: 'Workshop',
+        date: '2026-10-25',
+        time: '02:00 PM',
+        location: 'Lab 402, CSPIT IT Building',
+        capacity: 80,
+        sold: 45,
+        memberPrice: 0,
+        nonMemberPrice: 150,
+        status: 'Published',
+        description: 'Hands-on bootcamp on fine-tuning open-source LLMs, building RAG pipelines, and deploying containerized models.',
+        deadline: '2026-10-24 23:59',
+        organizer: 'AI & Data Science SIG',
+        bannerGradient: 'linear-gradient(135deg, #70D6FF 0%, #C8B6FF 100%)',
+        budget: { venue: 5000, snacks: 4000 },
+        tags: ['Workshop', 'GenAI', 'LLM']
+      }
+    ],
     merchandise: [],
     tasks: [],
     orders: [],
@@ -29,7 +68,24 @@ export const INITIAL_CLUBS_DATA = {
     sponsors: [],
     donations: [],
     certificates: [],
-    feedback: [],
+    feedback: [
+      {
+        id: 'fb-tc-01',
+        eventTitle: 'CHARUSAT 24h Hackathon 2026',
+        ratings: { overall: 5, speaker: 5, content: 5, venue: 5, organization: 5 },
+        comment: 'The mentor guidance and cloud infrastructure were top notch! Seamless QR gate entry too.',
+        author: 'Jay Barot (24CS045)',
+        date: '2026-10-02'
+      },
+      {
+        id: 'fb-tc-02',
+        eventTitle: 'Generative AI & LLM Systems Workshop',
+        ratings: { overall: 5, speaker: 5, content: 5, venue: 4, organization: 5 },
+        comment: 'Hands-on coding exercises with transformer models were super practical.',
+        author: 'Diya Patel (24IT012)',
+        date: '2026-09-28'
+      }
+    ],
     volunteers: [
       {
         id: 'VOL-TC-01',
