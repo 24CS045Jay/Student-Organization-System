@@ -7,6 +7,8 @@ import { merchRouter } from './routes/merch';
 import { fundraisingRouter } from './routes/fundraising';
 import { financeRouter } from './routes/finance';
 import { membershipRouter } from './routes/membership';
+import { reportsRouter } from './routes/reports';
+import { analyticsRouter } from './routes/analytics';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -22,8 +24,10 @@ app.use('/api/v1', merchRouter);
 app.use('/api/v1', fundraisingRouter);
 app.use('/api/v1', financeRouter);
 app.use('/api/v1', membershipRouter);
+app.use('/api/v1/reports', reportsRouter);
+app.use('/api/v1/analytics', analyticsRouter);
 
-app.get('/', (req, res) => {
+app.get('/', (req: any, res: any) => {
   res.json({
     name: 'ClubSphere API',
     version: '1.0.0',
