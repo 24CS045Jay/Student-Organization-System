@@ -4,6 +4,9 @@
 // ==========================================================================
 
 import { dbInstance, inr } from '../mock/db';
+import { generateSignedQRToken, verifyQRToken } from './qrSecurityService';
+import { sendEmail, sendTicketConfirmationEmail } from './emailService';
+import { notificationService } from './notificationService';
 
 export const clubService = {
   // Tenant validation
@@ -175,7 +178,7 @@ export const clubService = {
     return newEvent;
   },
 
-  buyTicket: (orgId, eventId, attendeeInfo, session) => {
+  buyTicket: (orgId, eventId, attendeeInfo, session, paymentDetails = null) => {
     const club = dbInstance.getClub(orgId);
     const event = club.events.find(e => e.id === eventId);
     if (!event) throw new Error('Event not found');
@@ -190,6 +193,8 @@ export const clubService = {
     event.sold += 1;
 
     const tktId = `TKT-${club.prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const qrSignedToken = generateSignedQRToken(tktId, orgId, event.id);
+
     const newTicket = {
       id: tktId,
       eventId: event.id,
@@ -202,7 +207,10 @@ export const clubService = {
       status: 'Valid',
       checkInTime: null,
       seat: `Pass #${event.sold}`,
-      purchaseDate: new Date().toISOString().split('T')[0]
+      purchaseDate: new Date().toISOString().split('T')[0],
+      qrToken: qrSignedToken,
+      paymentId: paymentDetails?.paymentId || `PAY-${Math.floor(100000 + Math.random() * 900000)}`,
+      paymentProvider: paymentDetails?.provider || 'razorpay'
     };
 
     club.tickets.unshift(newTicket);
@@ -216,8 +224,27 @@ export const clubService = {
       tktSource.count += 1;
     }
 
-    dbInstance.logAudit(orgId, session?.email, session?.role, 'Purchased Ticket', `Ticket ${tktId} for "${event.title}" by ${newTicket.attendeeName} (₹${price})`, 'Available Seat', `Seat ${event.sold}/${event.capacity}`);
+    dbInstance.logAudit(orgId, session?.email, session?.role, 'Purchased Ticket', `Ticket ${tktId} for "${event.title}" by ${newTicket.attendeeName} (₹${price}, Razorpay Ref: ${newTicket.paymentId})`, 'Available Seat', `Seat ${event.sold}/${event.capacity}`);
     dbInstance.save();
+
+    // Trigger transactional confirmation email (Phase 5)
+    sendTicketConfirmationEmail({
+      recipientEmail: newTicket.email,
+      attendeeName: newTicket.attendeeName,
+      eventTitle: event.title,
+      ticketId: newTicket.id,
+      seat: newTicket.seat,
+      price
+    }).catch(console.error);
+
+    // Dispatch in-app notification
+    notificationService.addNotification({
+      orgId,
+      type: 'ticket',
+      title: `🎟️ Pass Confirmed: ${event.title}`,
+      body: `Ticket #${newTicket.id} booked successfully for ${newTicket.attendeeName}. Verified payment ₹${price}.`
+    });
+
     return newTicket;
   },
 
@@ -537,6 +564,34 @@ export const clubService = {
     club.announcements.unshift(newAnn);
     dbInstance.logAudit(orgId, session?.email, session?.role, 'Broadcast Announcement', `Published "${newAnn.title}" to ${newAnn.audience}`, 'Draft', 'Published');
     dbInstance.save();
+
+    // Resend Email Broadcast if Email channel selected (Phase 5)
+    if (newAnn.channels.includes('Email')) {
+      const recipientEmails = club.members.map(m => m.email).filter(Boolean);
+      sendEmail({
+        to: recipientEmails.length > 0 ? recipientEmails[0] : 'members@charusat.edu.in',
+        subject: `📢 [${club.name}] ${newAnn.title}`,
+        html: `
+          <div style="font-family: sans-serif; padding: 20px; background-color: #FDF8F0;">
+            <h2 style="color: #121212;">${newAnn.title}</h2>
+            <p style="font-size: 14px; color: #555;">Audience: <strong>${newAnn.audience}</strong> • Posted by: ${newAnn.author}</p>
+            <div style="background: white; border: 2px solid black; padding: 16px; border-radius: 8px; margin: 16px 0;">
+              ${newAnn.content}
+            </div>
+            <p style="font-size: 12px; color: #777;">Sent via ClubSphere Communication Broadcast Hub.</p>
+          </div>
+        `
+      }).catch(console.error);
+    }
+
+    // In-App Notification Fan-out
+    notificationService.addNotification({
+      orgId,
+      type: 'announcement',
+      title: `📢 ${newAnn.title}`,
+      body: newAnn.content.length > 90 ? newAnn.content.slice(0, 90) + '...' : newAnn.content
+    });
+
     return newAnn;
   },
 

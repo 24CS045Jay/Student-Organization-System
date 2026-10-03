@@ -5,6 +5,7 @@ import { Sidebar } from './components/layout/Sidebar';
 import { QuickLoginModal } from './components/layout/QuickLoginModal';
 import { TenantForbidden403 } from './components/layout/TenantForbidden403';
 import { AICopilotView } from './features/ai/AICopilotView';
+import { notificationService } from './services/notificationService';
 
 // Features
 import { MyMembershipView } from './features/membership/MyMembershipView';
@@ -70,6 +71,14 @@ export default function App() {
   const [isNotifsOpen, setIsNotifsOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [dataVersion, setDataVersion] = useState(0);
+  const [notifsList, setNotifsList] = useState(notificationService.getNotifications(session.orgId));
+
+  useEffect(() => {
+    const unsubscribe = notificationService.subscribe((updated) => {
+      setNotifsList(updated.filter(n => !n.orgId || n.orgId === session.orgId));
+    });
+    return () => unsubscribe();
+  }, [session.orgId]);
 
   // Active Club Data
   const activeClub = session.orgId === 'platform' 
@@ -243,7 +252,7 @@ export default function App() {
         onOpenRoleSwitcher={() => setIsQuickLoginOpen(true)}
         onOpenQuickLogin={() => setIsQuickLoginOpen(true)}
         onToggleAICopilot={() => setIsAICopilotDrawerOpen(true)}
-        unreadNotifsCount={dbInstance.data.notifications.filter(n => n.unread).length}
+        unreadNotifsCount={notifsList.filter(n => !n.read).length}
         onOpenNotifs={() => setIsNotifsOpen(true)}
       />
 
@@ -283,25 +292,54 @@ export default function App() {
       <Drawer
         isOpen={isNotifsOpen}
         onClose={() => setIsNotifsOpen(false)}
-        title="🔔 Live Platform Notifications"
+        title="🔔 Live Platform Notifications (Phase 5)"
         headerColor="var(--accent-yellow)"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {dbInstance.data.notifications.map((n) => (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--ink-muted)' }}>
+              {notifsList.filter(n => !n.read).length} Unread Notifications
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                notificationService.markAllAsRead(session.orgId);
+                setNotifsList(notificationService.getNotifications(session.orgId));
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#2563EB',
+                fontWeight: 800,
+                fontSize: '11px',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              Mark all as read
+            </button>
+          </div>
+
+          {notifsList.map((n) => (
             <div
               key={n.id}
+              onClick={() => {
+                notificationService.markAsRead(n.id);
+                setNotifsList(notificationService.getNotifications(session.orgId));
+              }}
               style={{
                 padding: '14px',
-                backgroundColor: n.unread ? '#FEF9C3' : '#FAF5EE',
-                border: '2px solid #000',
-                borderRadius: '12px'
+                backgroundColor: !n.read ? '#FEF9C3' : '#FAF5EE',
+                border: !n.read ? '2.5px solid #000' : '2px solid #D4D4D8',
+                borderRadius: '12px',
+                cursor: 'pointer'
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                <h4 style={{ fontSize: '14px', fontWeight: 900, margin: 0 }}>{n.title}</h4>
-                <span style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 700 }}>{n.time}</span>
+                <h4 style={{ fontSize: '13px', fontWeight: 900, margin: 0 }}>{n.title}</h4>
+                <span style={{ fontSize: '10px', color: 'var(--ink-muted)', fontWeight: 700 }}>{n.timestamp || 'Recent'}</span>
               </div>
-              <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink)' }}>{n.message}</p>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink)', margin: 0 }}>{n.body || n.message}</p>
             </div>
           ))}
         </div>
