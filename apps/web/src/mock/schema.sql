@@ -381,3 +381,31 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 
 CREATE INDEX idx_audit_club_time ON audit_logs(club_id, created_at DESC);
+
+-- =============================================================================
+-- 19. PERMISSIONS & ROW LEVEL SECURITY (RLS) CONFIGURATION
+-- Allows full dynamic CRUD operations from the frontend/API client
+-- =============================================================================
+ALTER TABLE clubs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE membership_types DISABLE ROW LEVEL SECURITY;
+ALTER TABLE members DISABLE ROW LEVEL SECURITY;
+ALTER TABLE events DISABLE ROW LEVEL SECURITY;
+ALTER TABLE tickets DISABLE ROW LEVEL SECURITY;
+ALTER TABLE registrations DISABLE ROW LEVEL SECURITY;
+ALTER TABLE budgets DISABLE ROW LEVEL SECURITY;
+ALTER TABLE expenses DISABLE ROW LEVEL SECURITY;
+ALTER TABLE tasks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE team_members DISABLE ROW LEVEL SECURITY;
+ALTER TABLE venues DISABLE ROW LEVEL SECURITY;
+ALTER TABLE equipment DISABLE ROW LEVEL SECURITY;
+ALTER TABLE sponsors DISABLE ROW LEVEL SECURITY;
+ALTER TABLE certificates DISABLE ROW LEVEL SECURITY;
+ALTER TABLE feedback DISABLE ROW LEVEL SECURITY;
+ALTER TABLE announcements DISABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs DISABLE ROW LEVEL SECURITY;
+
+-- Grant permissions to Supabase roles
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+

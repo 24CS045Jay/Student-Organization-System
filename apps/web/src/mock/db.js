@@ -109,7 +109,26 @@ class MockDatabase {
       if (first) return this.data.clubs[first];
       throw new Error(`Club "${orgId}" not found. Please create this club first in the Super Admin portal.`);
     }
-    return this.data.clubs[orgId];
+    const club = this.data.clubs[orgId];
+    // Safeguard all relational collections against undefined
+    if (!club.volunteers) club.volunteers = [];
+    if (!club.reimbursements) club.reimbursements = [];
+    if (!club.announcements) club.announcements = [];
+    if (!club.tasks) club.tasks = [];
+    if (!club.members) club.members = [];
+    if (!club.events) club.events = [];
+    if (!club.merchandise) club.merchandise = [];
+    if (!club.orders) club.orders = [];
+    if (!club.tickets) club.tickets = [];
+    if (!club.fundraisers) club.fundraisers = [];
+    if (!club.sponsors) club.sponsors = [];
+    if (!club.donations) club.donations = [];
+    if (!club.certificates) club.certificates = [];
+    if (!club.feedback) club.feedback = [];
+    if (!club.finance) {
+      club.finance = { totalIncome: 0, totalExpenses: 0, netBalance: 0, incomeSources: [], expensesList: [] };
+    }
+    return club;
   }
 
   getAllUsers() {
