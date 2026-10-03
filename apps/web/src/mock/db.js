@@ -5,8 +5,8 @@
 
 export const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 
-// Updated storage key to ensure 100% sync with users table
-const STORAGE_KEY = 'clubsphere_live_db_v5';
+// Updated storage key to ensure 100% sync with volunteers and reimbursements
+const STORAGE_KEY = 'clubsphere_live_db_v6';
 
 // Fresh initial database state with baseline campus organizations
 export const INITIAL_CLUBS_DATA = {
@@ -23,6 +23,69 @@ export const INITIAL_CLUBS_DATA = {
     events: [],
     merchandise: [],
     tasks: [],
+    orders: [],
+    tickets: [],
+    fundraisers: [],
+    sponsors: [],
+    donations: [],
+    certificates: [],
+    feedback: [],
+    volunteers: [
+      {
+        id: 'VOL-TC-01',
+        name: 'Jay Barot',
+        email: 'jay.volunteer@tech.campus.edu',
+        phone: '+91 98250 11223',
+        roleTitle: 'Technical Operations Volunteer',
+        hours: 56,
+        service_hours: 56,
+        badge: 'Silver Contributor (50h+)',
+        rating: 4.9,
+        skills: ['Event Logistics', 'Gate Registration', 'Stage AV'],
+        activeTasks: 3
+      },
+      {
+        id: 'VOL-TC-02',
+        name: 'Param Joshi',
+        email: 'param.v@tech.campus.edu',
+        phone: '+91 98765 43210',
+        roleTitle: 'Event Logistics Volunteer',
+        hours: 32,
+        service_hours: 32,
+        badge: 'Bronze Contributor (25h+)',
+        rating: 4.8,
+        skills: ['Audio/Visual', 'Equipment Setup'],
+        activeTasks: 1
+      }
+    ],
+    reimbursements: [
+      {
+        id: 'REIMB-TC-101',
+        volunteerName: 'Jay Barot',
+        volunteerEmail: 'jay.volunteer@tech.campus.edu',
+        category: 'Supplies & Printing',
+        event: 'CHARUSAT 24h Hackathon 2026',
+        amount: 1800,
+        date: '2026-10-02',
+        description: 'Lanyards, badge printing, and extension cords',
+        receiptUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400',
+        status: 'Manager Approved',
+        approver: 'Event Manager',
+        notes: 'Official GST invoice verified'
+      }
+    ],
+    announcements: [
+      {
+        id: 'ANN-TC-01',
+        title: 'Volunteer Briefing for CHARUSAT Hackathon 2026',
+        audience: 'All Members & Students',
+        channels: ['In-app', 'Email'],
+        content: 'All volunteers please assemble at Central Computing Lab at 8:30 AM this Saturday.',
+        date: '2026-10-02',
+        author: 'Club Admin',
+        reach: 120
+      }
+    ],
     membershipTypes: [
       { id: '10000000-0000-0000-0000-000000000001', name: 'Standard Member', price: 499, duration_months: 12, benefits: 'Workshops & Hackathons' },
       { id: '10000000-0000-0000-0000-000000000002', name: 'Premium Member', price: 999, duration_months: 12, benefits: 'VIP pass, swag & mentor 1-on-1' }
@@ -43,6 +106,30 @@ export const INITIAL_CLUBS_DATA = {
     events: [],
     merchandise: [],
     tasks: [],
+    orders: [],
+    tickets: [],
+    fundraisers: [],
+    sponsors: [],
+    donations: [],
+    certificates: [],
+    feedback: [],
+    volunteers: [
+      {
+        id: 'VOL-CC-01',
+        name: 'Diya Patel',
+        email: 'diya.v@cultural.campus.edu',
+        phone: '+91 99123 45678',
+        roleTitle: 'Hospitality Volunteer',
+        hours: 42,
+        service_hours: 42,
+        badge: 'Bronze Contributor (25h+)',
+        rating: 4.95,
+        skills: ['Hospitality', 'Stage Management'],
+        activeTasks: 2
+      }
+    ],
+    reimbursements: [],
+    announcements: [],
     membershipTypes: [
       { id: '10000000-0000-0000-0000-000000000003', name: 'Standard Arts Member', price: 499, duration_months: 12, benefits: 'Concerts & Art Exhibitions' }
     ],
@@ -62,6 +149,16 @@ export const INITIAL_CLUBS_DATA = {
     events: [],
     merchandise: [],
     tasks: [],
+    orders: [],
+    tickets: [],
+    fundraisers: [],
+    sponsors: [],
+    donations: [],
+    certificates: [],
+    feedback: [],
+    volunteers: [],
+    reimbursements: [],
+    announcements: [],
     membershipTypes: [
       { id: '10000000-0000-0000-0000-000000000004', name: 'Sports Athlete Pass', price: 499, duration_months: 12, benefits: 'Tournaments & Team Kit' }
     ],
@@ -165,7 +262,26 @@ class MockDatabase {
         throw new Error(`Club "${orgId}" not found or unauthorized (Tenant Isolation Rule).`);
       }
     }
-    return this.data.clubs[orgId];
+    const club = this.data.clubs[orgId];
+    // Safeguard all relational collections against undefined
+    if (!club.volunteers) club.volunteers = [];
+    if (!club.reimbursements) club.reimbursements = [];
+    if (!club.announcements) club.announcements = [];
+    if (!club.tasks) club.tasks = [];
+    if (!club.members) club.members = [];
+    if (!club.events) club.events = [];
+    if (!club.merchandise) club.merchandise = [];
+    if (!club.orders) club.orders = [];
+    if (!club.tickets) club.tickets = [];
+    if (!club.fundraisers) club.fundraisers = [];
+    if (!club.sponsors) club.sponsors = [];
+    if (!club.donations) club.donations = [];
+    if (!club.certificates) club.certificates = [];
+    if (!club.feedback) club.feedback = [];
+    if (!club.finance) {
+      club.finance = { totalIncome: 0, totalExpenses: 0, netBalance: 0, incomeSources: [], expensesList: [] };
+    }
+    return club;
   }
 
   getAllUsers() {

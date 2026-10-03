@@ -4,8 +4,9 @@ import { clubService } from '../../services/clubService';
 import { Megaphone, Plus, Mail, Globe, Bell, Send, Users, Sparkles } from 'lucide-react';
 
 export const AnnouncementsView = ({ session, activeClub, onDataChange, onToast }) => {
+  const canCompose = session?.role === 'admin' || session?.role === 'event_manager' || session?.role === 'manager' || session?.role === 'super_admin';
   const [isComposeOpen, setIsComposeOpen] = useState(false);
-  const [activeView, setActiveView] = useState(session.role === 'student' ? 'feed' : 'manage');
+  const [activeView, setActiveView] = useState(canCompose ? 'manage' : 'feed');
   const [composeForm, setComposeForm] = useState({
     title: '',
     audience: 'All Members & Students',
@@ -26,7 +27,7 @@ export const AnnouncementsView = ({ session, activeClub, onDataChange, onToast }
 
   const handlePublish = (e) => {
     e.preventDefault();
-    if (!composeForm.title) return;
+    if (!canCompose || !composeForm.title) return;
     try {
       const ann = clubService.publishAnnouncement(activeClub.id, composeForm, session);
       setIsComposeOpen(false);
@@ -59,7 +60,9 @@ export const AnnouncementsView = ({ session, activeClub, onDataChange, onToast }
             Announcements & Multi-Channel Broadcast (FR-07, FR-08)
           </h1>
           <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)' }}>
-            Segmented email blasts, in-app notifications, and portal updates for {activeClub.name}.
+            {canCompose
+              ? `Segmented email blasts, in-app notifications, and portal updates for ${activeClub.name}.`
+              : `Official announcements, event notices, and updates for ${activeClub.name}.`}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -70,7 +73,7 @@ export const AnnouncementsView = ({ session, activeClub, onDataChange, onToast }
           >
             Public Feed
           </Button>
-          {session.role !== 'student' && (
+          {canCompose && (
             <>
               <Button
                 variant={activeView === 'manage' ? 'purple' : 'white'}
@@ -168,13 +171,14 @@ export const AnnouncementsView = ({ session, activeClub, onDataChange, onToast }
         </div>
       )}
 
-      {/* Compose Broadcast Drawer */}
-      <Drawer
-        isOpen={isComposeOpen}
-        onClose={() => setIsComposeOpen(false)}
-        title="📢 Compose Multi-Channel Broadcast"
-        headerColor="var(--accent-pink)"
-      >
+      {/* Compose Broadcast Drawer (Manager & Admin only) */}
+      {canCompose && (
+        <Drawer
+          isOpen={isComposeOpen}
+          onClose={() => setIsComposeOpen(false)}
+          title="📢 Compose Multi-Channel Broadcast"
+          headerColor="var(--accent-pink)"
+        >
         <form onSubmit={handlePublish} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <label className="neo-label">Headline Title *</label>
@@ -239,6 +243,7 @@ export const AnnouncementsView = ({ session, activeClub, onDataChange, onToast }
           </Button>
         </form>
       </Drawer>
+      )}
     </div>
   );
 };
