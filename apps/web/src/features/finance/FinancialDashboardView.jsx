@@ -27,7 +27,7 @@ export const FinancialDashboardView = ({ session, activeClub, onToast, onNavigat
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <Button variant="black" size="sm" onClick={() => onToast && onToast('📄 Full Financial Audit Statement PDF exported.')} icon={Download}>
+          <Button variant="black" size="sm" onClick={() => { window.print(); if (onToast) onToast('🖨️ Opened print dialog for Financial Audit PDF.'); }} icon={Download}>
             Export Financial Report
           </Button>
           <Button variant="yellow" size="sm" onClick={() => onNavigate && onNavigate('reimbursements-mgmt')}>
