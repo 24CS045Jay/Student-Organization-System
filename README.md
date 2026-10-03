@@ -1,4 +1,4 @@
-# ClubSphere — Neo-Brutalist Club Management & SaaS Platform
+# ClubSphere —  Club Management & SaaS Platform
 
 A modern, responsive Neo-Brutalist React prototype for multi-tenant college club and student organization management.
 
