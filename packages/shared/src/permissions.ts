@@ -5,8 +5,11 @@ export const PERMISSIONS = {
   'events:write': ['event_manager', 'admin'],
   'finance:read': ['treasurer', 'admin'],
   'finance:write': ['treasurer', 'admin'],
-  'members:read': ['event_manager', 'treasurer', 'admin'],
+  'members:read': ['student', 'volunteer', 'event_manager', 'treasurer', 'admin'],
   'members:write': ['admin'],
+  'members:verify': ['volunteer', 'event_manager', 'treasurer', 'admin'],
+  'membership_types:read': ['student', 'volunteer', 'event_manager', 'treasurer', 'admin'],
+  'membership_types:write': ['admin'],
   'settings:write': ['admin'],
 } as const;
 

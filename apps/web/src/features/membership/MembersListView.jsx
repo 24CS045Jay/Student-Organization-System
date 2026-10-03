@@ -91,7 +91,36 @@ export const MembersListView = ({ session, activeClub, onDataChange, onToast }) 
   };
 
   const handleExport = () => {
-    if (onToast) onToast('📄 Simulated Export: member_roster_2026.csv generated!');
+    try {
+      const headers = ['Member ID', 'Name', 'Email', 'Student ID', 'Department', 'Tier', 'Status', 'Expires On', 'Paid'];
+      const rows = filteredMembers.map(m => {
+        const isExpired = new Date(m.exp) < new Date() || m.paid === 0;
+        return [
+          m.id,
+          `"${(m.name || '').replace(/"/g, '""')}"`,
+          m.email,
+          m.studentId || '',
+          `"${(m.dept || '').replace(/"/g, '""')}"`,
+          `"${(m.type || '').replace(/"/g, '""')}"`,
+          isExpired ? 'Expired' : 'Active',
+          m.exp,
+          m.paid ? 'Yes' : 'No'
+        ].join(',');
+      });
+      const csvString = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `${(activeClub?.name || 'club').replace(/\s+/g, '_')}_members_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      if (onToast) onToast(`📄 Exported ${filteredMembers.length} members to CSV!`);
+    } catch (err) {
+      if (onToast) onToast('❌ Failed to export CSV');
+    }
   };
 
   return (
