@@ -19,7 +19,7 @@ import {
 import { dbInstance } from '../../mock/db';
 import { clubService } from '../../services/clubService';
 
-export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login' }) => {
+export const AuthView = ({ onAuthSuccess, onBackToLanding, onSuperAdminClick, initialMode = 'login' }) => {
   const [mode, setMode] = useState(initialMode); // 'login' | 'register'
   
   // Form fields
@@ -378,6 +378,32 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, initialMode = 'login'
         ) : mode === 'register' ? (
           /* CASE 2: Sign Up Form (Personal Email -> Club Email Assignment) */
           <form onSubmit={handleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {registeredClubs.length === 0 && onSuperAdminClick && (
+              <div
+                style={{
+                  padding: '12px 14px',
+                  backgroundColor: '#FEF9C3',
+                  border: '2px solid #CA8A04',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px'
+                }}
+              >
+                <span style={{ fontSize: '12px', fontWeight: 800, color: '#854D0E' }}>
+                  ⚠️ No clubs exist yet in the system.
+                </span>
+                <button
+                  type="button"
+                  onClick={onSuperAdminClick}
+                  className="neo-btn neo-btn-yellow neo-btn-sm"
+                  style={{ whiteSpace: 'nowrap', fontSize: '11px', padding: '6px 10px' }}
+                >
+                  Create in Super Admin
+                </button>
+              </div>
+            )}
             {/* Full Name */}
             <div>
               <label className="neo-label">Full Name *</label>

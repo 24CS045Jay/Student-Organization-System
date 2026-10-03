@@ -208,6 +208,7 @@ export default function App() {
           initialMode={authInitialMode}
           onAuthSuccess={handleAuthSuccess}
           onBackToLanding={() => setViewState('landing')}
+          onSuperAdminClick={() => setViewState('super-admin-club-creation')}
         />
       );
     }
@@ -222,7 +223,6 @@ export default function App() {
           setAuthInitialMode('register');
           setViewState('auth');
         }}
-        onDemoSelect={handleRoleAndClubSelect}
         onSuperAdminClick={() => setViewState('super-admin-club-creation')}
       />
     );
