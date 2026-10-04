@@ -121,37 +121,150 @@ export const VolunteerPortalView = ({ session, activeClub, onToast, onDataChange
             ))}
           </div>
 
-          <h4 style={{ fontSize: '15px', fontWeight: 900, marginBottom: '10px' }}>
-            Active Volunteer Commitments
-          </h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <h4 style={{ fontSize: '15px', fontWeight: 900, margin: 0 }}>
+              📋 Assigned Event Logistics Tasks
+            </h4>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--ink-muted)' }}>
+              Assigned by Event Managers
+            </span>
+          </div>
+
           {(() => {
-            const myTasks = (club.tasks || []).filter(t => 
-              (t.owner && currentVol.name && t.owner.toLowerCase() === currentVol.name.toLowerCase()) ||
-              (t.assignedTo && currentVol.name && t.assignedTo.toLowerCase() === currentVol.name.toLowerCase()) ||
-              (session?.name && t.owner && t.owner.toLowerCase() === session.name.toLowerCase())
-            );
+            const userIdentifier = (session?.name || '').toLowerCase();
+            const userEmail = (session?.email || '').toLowerCase();
+            const volName = (currentVol.name || '').toLowerCase();
+
+            const myTasks = (club.tasks || []).filter(t => {
+              const o = (t.owner || '').toLowerCase();
+              const a = (t.assignedTo || '').toLowerCase();
+              const e = (t.assignedVolunteerEmail || '').toLowerCase();
+              return (volName && (o === volName || a === volName)) ||
+                     (userIdentifier && (o === userIdentifier || a === userIdentifier)) ||
+                     (userEmail && (e === userEmail || o.includes(userEmail.split('@')[0])));
+            });
 
             if (myTasks.length === 0) {
               return (
-                <div style={{ padding: '20px', textAlign: 'center', backgroundColor: '#FAF5EE', border: '1.5px dashed #000', borderRadius: '10px', fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)' }}>
-                  No active logistics tasks assigned to your name yet. Head to the Tasks Kanban to pick up open tasks!
+                <div style={{ padding: '24px 16px', textAlign: 'center', backgroundColor: '#FAF5EE', border: '1.5px dashed #000', borderRadius: '12px', fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)' }}>
+                  <div style={{ fontSize: '24px', marginBottom: '4px' }}>✨</div>
+                  No active logistics tasks assigned to you right now. When the Event Manager assigns duties for upcoming events, they will appear here!
                 </div>
               );
             }
 
+            const handleQuickStatus = (taskId, newStatus, newProgress) => {
+              try {
+                clubService.updateTaskStatus(activeClub.id, taskId, newStatus, newProgress, session);
+                if (onToast) onToast(`📋 Task marked as "${newStatus}"!`);
+                if (onDataChange) onDataChange();
+              } catch (err) {
+                alert(err.message);
+              }
+            };
+
             return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {myTasks.map((task) => (
-                  <div key={task.id} style={{ padding: '12px', backgroundColor: '#FAF5EE', border: '2px solid #000', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontWeight: 900, fontSize: '13px' }}>{task.title}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 700 }}>Due: {task.deadline} • Priority: {task.priority}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {myTasks.map((task) => {
+                  const isPending = task.status === 'Pending' || task.stage === 'To Do';
+                  const isInProgress = task.status === 'In Progress' || task.stage === 'In Progress';
+                  const isDone = task.status === 'Done' || task.stage === 'Done';
+
+                  return (
+                    <div
+                      key={task.id}
+                      style={{
+                        padding: '14px',
+                        backgroundColor: isDone ? '#F0FDF4' : '#FAF5EE',
+                        border: '2px solid #000',
+                        borderRadius: '12px',
+                        boxShadow: '2px 2px 0px #000',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                        <div>
+                          {task.eventName && (
+                            <span
+                              style={{
+                                backgroundColor: '#E0E7FF',
+                                color: '#3730A3',
+                                border: '1.5px solid #121212',
+                                borderRadius: '6px',
+                                padding: '1px 6px',
+                                fontSize: '10px',
+                                fontWeight: 900,
+                                marginBottom: '4px',
+                                display: 'inline-block'
+                              }}
+                            >
+                              🎟️ {task.eventName}
+                            </span>
+                          )}
+                          <div style={{ fontWeight: 900, fontSize: '14px' }}>{task.title}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 700, marginTop: '2px' }}>
+                            Due: {task.deadline} • Priority: <span style={{ color: task.priority === 'Urgent' ? '#DC2626' : task.priority === 'High' ? '#D97706' : '#2563EB', fontWeight: 900 }}>{task.priority || 'Normal'}</span>
+                          </div>
+                        </div>
+                        <Badge variant={isDone ? 'green' : isInProgress ? 'purple' : 'yellow'}>
+                          {task.status || task.stage || 'Pending'}
+                        </Badge>
+                      </div>
+
+                      {task.notes && (
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#4B5563', backgroundColor: '#FFFFFF', padding: '6px 8px', borderRadius: '6px', border: '1px solid #E5E7EB' }}>
+                          💬 Note: {task.notes}
+                        </div>
+                      )}
+
+                      {/* Quick Status Change Action Buttons */}
+                      <div style={{ display: 'flex', gap: '6px', marginTop: '4px', paddingTop: '6px', borderTop: '1px dashed #D4D4D8' }}>
+                        {isPending && (
+                          <Button
+                            variant="yellow"
+                            size="sm"
+                            style={{ width: '100%', fontSize: '11px', padding: '4px 8px' }}
+                            onClick={() => handleQuickStatus(task.id, 'In Progress', 50)}
+                          >
+                            Start Working →
+                          </Button>
+                        )}
+                        {isInProgress && (
+                          <>
+                            <Button
+                              variant="white"
+                              size="sm"
+                              style={{ fontSize: '11px', padding: '4px 8px' }}
+                              onClick={() => handleQuickStatus(task.id, 'Pending', 0)}
+                            >
+                              ← Back
+                            </Button>
+                            <Button
+                              variant="green"
+                              size="sm"
+                              style={{ flex: 1, fontSize: '11px', padding: '4px 8px' }}
+                              onClick={() => handleQuickStatus(task.id, 'Done', 100)}
+                            >
+                              ✓ Mark Complete
+                            </Button>
+                          </>
+                        )}
+                        {isDone && (
+                          <Button
+                            variant="white"
+                            size="sm"
+                            style={{ width: '100%', fontSize: '11px', padding: '4px 8px' }}
+                            onClick={() => handleQuickStatus(task.id, 'In Progress', 50)}
+                          >
+                            ↩ Reopen Task
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                    <Badge variant={task.status === 'Done' ? 'green' : task.status === 'In Progress' ? 'purple' : 'yellow'}>
-                      {task.status || task.stage || 'Active'}
-                    </Badge>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             );
           })()}
