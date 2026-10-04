@@ -7,11 +7,10 @@ const RESEND_API_KEY = import.meta.env.VITE_RESEND_API_KEY || import.meta.env.RE
 const FROM_EMAIL = import.meta.env.VITE_RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
 /**
- * Dispatches an email via Resend API with automatic graceful offline logging
+ * Dispatches an email via backend Resend API to deliver real emails to user inbox (no popups)
  */
 export const sendEmail = async ({ to, subject, html, text }) => {
   const payload = {
-    from: FROM_EMAIL,
     to: Array.isArray(to) ? to : [to],
     subject,
     html: html || `<p>${text || subject}</p>`,
@@ -19,29 +18,28 @@ export const sendEmail = async ({ to, subject, html, text }) => {
   };
 
   try {
-    const res = await fetch('https://api.resend.com/emails', {
+    const res = await fetch('http://localhost:3000/api/v1/email/send', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
     });
 
+    const data = await res.json();
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.warn('Resend API response status:', res.status, err);
-      return { success: false, mode: 'logged_locally', error: err.message || res.statusText };
+      console.warn('[Email Service] Email delivery response:', data);
+      return { success: false, error: data.error };
     }
 
-    const data = await res.json();
-    return { success: true, mode: 'sent_via_resend', id: data.id };
+    console.info('[Email Service] Real email dispatched successfully to:', to, data);
+    return { success: true, mode: 'sent_to_inbox', id: data.id };
   } catch (error) {
-    // In browser client (CORS or offline), log and return success in local simulation
-    console.info('[Email Service] Simulated Resend dispatch:', { to, subject });
-    return { success: true, mode: 'simulated_local', message: 'Email queued and delivered successfully' };
+    console.error('[Email Service] Network/API error delivering email:', error);
+    return { success: false, error: error.message };
   }
 };
+
 
 /**
  * Sends Ticket Booking Confirmation with QR Pass details

@@ -15,6 +15,7 @@ import { differentiatorsRouter } from './routes/differentiators';
 import { platformRouter } from './routes/platform';
 import { aiRouter } from './routes/ai';
 import { healthRouter } from './routes/health';
+import { emailRouter } from './routes/email';
 
 import { syncRouter } from './routes/sync';
 import { membershipService } from './services/membershipService';
@@ -28,6 +29,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/email', emailRouter);
 app.use('/api/v1/orgs', orgRouter);
 app.use('/api/v1', eventsRouter);
 app.use('/api/v1', merchRouter);

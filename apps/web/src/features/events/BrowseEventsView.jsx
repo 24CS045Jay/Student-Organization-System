@@ -3,7 +3,8 @@ import { Card, Button, Badge, Modal, ProgressBar } from '../../components/ui/ind
 import { DigitalEventTicket } from '../../components/ui/QRCodeCard';
 import { clubService } from '../../services/clubService';
 import { openRazorpayCheckout } from '../../services/paymentService';
-import { Calendar, MapPin, Ticket, Sparkles, AlertCircle, Search, Building2, CheckCircle2 } from 'lucide-react';
+import { Calendar, MapPin, Ticket, Sparkles, AlertCircle, Search, Building2, CheckCircle2, CalendarPlus, Download, Share2 } from 'lucide-react';
+import { getGoogleCalendarUrl, downloadIcsCalendarFile, getWhatsAppShareUrl } from '../../services/calendarService';
 
 export const BrowseEventsView = ({ session, activeClub, onToast, onNavigate }) => {
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -293,8 +294,97 @@ export const BrowseEventsView = ({ session, activeClub, onToast, onNavigate }) =
                   </div>
                 </div>
 
-                {/* Action Button */}
-                <div style={{ padding: '0 20px 20px' }}>
+                {/* Action Section */}
+                <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {/* Calendar & Share quick tools */}
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      type="button"
+                      title="Add to Google Calendar"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const gcal = getGoogleCalendarUrl({
+                          title: event.title,
+                          description: event.description,
+                          location: event.location,
+                          date: event.date,
+                          time: event.time
+                        });
+                        window.open(gcal, '_blank');
+                      }}
+                      className="neo-btn neo-btn-sm neo-btn-white"
+                      style={{
+                        flex: 1,
+                        fontSize: '11px',
+                        fontWeight: 900,
+                        padding: '6px 8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <CalendarPlus size={13} />
+                      <span>Google Cal</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      title="Download .ICS Calendar File"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        downloadIcsCalendarFile({
+                          title: event.title,
+                          description: event.description,
+                          location: event.location,
+                          date: event.date,
+                          time: event.time,
+                          filename: `${event.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}.ics`
+                        });
+                      }}
+                      className="neo-btn neo-btn-sm neo-btn-white"
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 900,
+                        padding: '6px 8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <Download size={13} />
+                      <span>.ICS</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      title="Share Event to WhatsApp"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const wa = getWhatsAppShareUrl({
+                          title: event.title,
+                          subtitle: `📅 ${event.date} • ${event.time} @ ${event.location}`,
+                          url: window.location.href
+                        });
+                        window.open(wa, '_blank');
+                      }}
+                      className="neo-btn neo-btn-sm"
+                      style={{
+                        backgroundColor: '#25D366',
+                        color: '#FFF',
+                        fontSize: '11px',
+                        fontWeight: 900,
+                        padding: '6px 10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <Share2 size={13} />
+                    </button>
+                  </div>
+
                   <Button
                     variant={isSoldOut ? 'black' : 'yellow'}
                     style={{ width: '100%' }}
