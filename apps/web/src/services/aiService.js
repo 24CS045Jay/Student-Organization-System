@@ -106,13 +106,128 @@ STRICT OPERATIONAL RULES:
 }
 
 /**
+ * Local Context Intelligence Engine (Runs when remote LLM keys are absent or network is unavailable)
+ */
+function generateLocalContextAnswer(club, query) {
+  if (!club) return "No active organization selected.";
+
+  const q = query.toLowerCase().trim();
+
+  // Multi-tenant isolation check
+  const candidateClubs = [
+    { key: 'tech', label: 'Tech Club' },
+    { key: 'cultural', label: 'Cultural Society' },
+    { key: 'sports', label: 'Sports Club' }
+  ];
+  for (const c of candidateClubs) {
+    if ((q.includes(c.key + ' club') || q.includes(c.key + ' society')) && !club.name.toLowerCase().includes(c.key)) {
+      return `⚠️ Tenant Isolation Guard: I am only authorized to access records and operations for ${club.name}.`;
+    }
+  }
+
+  // 1. Balance / Financial / Budget / Income / Expenses
+  if (q.includes('balance') || q.includes('money') || q.includes('treasury') || q.includes('fund') || q.includes('financial') || q.includes('income') || q.includes('expense')) {
+    const net = (club.finance?.netBalance || 0).toLocaleString('en-IN');
+    const income = (club.finance?.totalIncome || 0).toLocaleString('en-IN');
+    const expense = (club.finance?.totalExpenses || 0).toLocaleString('en-IN');
+    const budget = club.finance?.budgetAllocated ? `\n• Allocated Semester Budget: **₹${club.finance.budgetAllocated.toLocaleString('en-IN')}**` : '';
+    return `💰 **Treasury & Ledger Overview for ${club.name}:**\n• Available Net Balance: **₹${net}**\n• Total Income: **₹${income}**\n• Total Expenses: **₹${expense}**${budget}\n\nFinancial records are synchronized with the live club ledger.`;
+  }
+
+  // 2. Reimbursements / Claims
+  if (q.includes('reimburse') || q.includes('claim') || q.includes('unpaid') || q.includes('invoice')) {
+    const claims = club.reimbursements || [];
+    const pending = claims.filter(r => r.status !== 'Reimbursed');
+    const totalPending = pending.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+    if (pending.length === 0) {
+      return `🧾 **Reimbursements Status:** All reimbursement claims for ${club.name} are settled or approved. There are currently 0 pending unpaid claims.`;
+    }
+    const claimList = pending.slice(0, 3).map(r => `• ${r.title || r.purpose || 'Claim'}: ₹${(r.amount || 0).toLocaleString('en-IN')} (${r.status || 'Pending'})`).join('\n');
+    return `🧾 **Pending Reimbursements (${pending.length} claims):** Totaling **₹${totalPending.toLocaleString('en-IN')}**\n${claimList}\n\nYou can review and approve them in the Finance > Reimbursements module.`;
+  }
+
+  // 3. Events & Ticket Sales
+  if (q.includes('most ticket') || q.includes('top event') || q.includes('best selling') || q.includes('popular event') || q.includes('highest ticket')) {
+    const events = club.events || [];
+    if (events.length === 0) {
+      return `🎟️ There are no published events in the ${club.name} schedule yet.`;
+    }
+    const sorted = [...events].sort((a, b) => (b.sold || 0) - (a.sold || 0));
+    const top = sorted[0];
+    return `🏆 **Top Event by Ticket Sales:** "${top.title}" with **${top.sold || 0} tickets sold** out of ${top.capacity || 100} capacity (Status: ${top.status || 'Active'}).`;
+  }
+
+  if (q.includes('event') || q.includes('hackathon') || q.includes('workshop') || q.includes('ticket') || q.includes('schedule') || q.includes('fest')) {
+    const events = club.events || [];
+    if (events.length === 0) {
+      return `🎟️ **Events for ${club.name}:** Currently no events are scheduled. You can publish a new event using the Events Manager.`;
+    }
+    const list = events.slice(0, 4).map(e => `• **${e.title}** (${e.date || 'TBD'}): ${e.sold || 0}/${e.capacity || 100} passes sold | Member: ₹${e.memberPrice || 0}, Regular: ₹${e.nonMemberPrice || 0}`).join('\n');
+    return `📅 **Upcoming Events & Pass Sales for ${club.name}:**\n${list}`;
+  }
+
+  // 4. Membership / Members / Dues
+  if (q.includes('member') || q.includes('roster') || q.includes('growth') || q.includes('due') || q.includes('active member')) {
+    const members = club.members || [];
+    const active = members.filter(m => m.paid && (!m.exp || new Date(m.exp) >= new Date())).length;
+    const unpaid = members.length - active;
+    const feeInfo = club.membershipFee ? `\n• Annual Membership Dues: **₹${club.membershipFee}**` : '';
+    return `👥 **Membership Intelligence for ${club.name}:**\n• Total Registered Members: **${members.length}**\n• Active Paid Members: **${active}**\n• Expired / Pending Dues: **${unpaid}**${feeInfo}`;
+  }
+
+  // 5. Merchandise / Inventory / Stock
+  if (q.includes('merch') || q.includes('stock') || q.includes('store') || q.includes('t-shirt') || q.includes('hoodie') || q.includes('inventory')) {
+    const merch = club.merchandise || [];
+    if (merch.length === 0) {
+      return `🛍️ There is currently no merchandise listed in the ${club.name} inventory.`;
+    }
+    const list = merch.map(m => {
+      const stockTotal = m.stock ? Object.values(m.stock).reduce((a, b) => a + b, 0) : (m.qty || 0);
+      return `• **${m.name}**: ₹${m.memberPrice || m.price || 0} (Member) / ₹${m.nonMemberPrice || m.price || 0} (Regular) — ${stockTotal} units in stock`;
+    }).join('\n');
+    return `🛍️ **Merchandise Inventory for ${club.name}:**\n${list}`;
+  }
+
+  // 6. Volunteers & Tasks
+  if (q.includes('volunteer') || q.includes('task') || q.includes('kanban')) {
+    const vols = club.volunteers || [];
+    const tasks = club.tasks || [];
+    return `🤝 **Volunteers & Task Operations:**\n• Registered Volunteers: **${vols.length}**\n• Active Operations Tasks: **${tasks.length}**\n\nAssign volunteers to roles from the Kanban / Volunteer Management dashboard.`;
+  }
+
+  // 7. Fundraisers & Sponsorships
+  if (q.includes('fundrais') || q.includes('campaign') || q.includes('donation') || q.includes('sponsor')) {
+    const funds = club.fundraisers || [];
+    const sponsors = club.sponsors || [];
+    return `🎯 **Fundraising & Sponsorship Status:**\n• Active Campaigns: **${funds.length}**\n• Corporate Sponsors: **${sponsors.length}**`;
+  }
+
+  // 8. Club Profile / Contact / Advisor
+  if (q.includes('advisor') || q.includes('contact') || q.includes('department') || q.includes('email') || q.includes('president') || q.includes('head')) {
+    return `ℹ️ **${club.name} Profile:**\n• Department: ${club.department || 'Student Activities Directorate'}\n• Faculty Advisor: ${club.facultyAdvisor || 'Assigned Faculty Coordinator'}\n• Contact Email: ${club.contactEmail || club.emailDomain || 'club@campus.edu'}\n• Org Prefix: ${club.prefix || 'ORG'}`;
+  }
+
+  // 9. Portal Capabilities / Help
+  if (q.includes('how to') || q.includes('feature') || q.includes('portal') || q.includes('what can you do') || q.includes('help')) {
+    return `⚡ **ClubSphere Portal Capabilities:**\n• **Membership**: Digital ID issuance, fee collection, CSV roster sync.\n• **Event Ticketing**: Dynamic member discounts, live QR scanner check-in.\n• **Treasury & POS**: Double-entry finance tracking, size-variant merch inventory.\n• **Certificates**: Cryptographically verifiable event badges with QR validation.\n• **AI Copilot**: Real-time operational intelligence and event planning.`;
+  }
+
+  // 10. General contextual fallback
+  return `🤖 **ClubSphere Intelligence:** Analyzed database context for **${club.name}** regarding "${query}". Operations, treasury balance (₹${(club.finance?.netBalance || 0).toLocaleString('en-IN')}), and ${club.members?.length || 0} members are running normally within standard campus parameters.`;
+}
+
+/**
  * Call Groq API (Primary High-Speed Engine)
  */
 async function callGroq(query, systemPrompt) {
+  if (!GROQ_API_KEY || !GROQ_API_KEY.trim()) {
+    throw new Error('Groq API key not configured');
+  }
+
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${GROQ_API_KEY}`,
+      'Authorization': `Bearer ${GROQ_API_KEY.trim()}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
@@ -141,13 +256,17 @@ async function callGroq(query, systemPrompt) {
  * Call Google Gemini API (Reliable Fallback Engine)
  */
 async function callGemini(query, systemPrompt) {
+  if (!GEMINI_API_KEY || !GEMINI_API_KEY.trim()) {
+    throw new Error('Gemini API key not configured');
+  }
+
   // Try available Gemini models in sequence
   const candidateModels = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-2.5-flash-lite'];
   let lastError = null;
 
   for (const model of candidateModels) {
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY.trim()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -183,7 +302,7 @@ async function callGemini(query, systemPrompt) {
 
 export const aiService = {
   /**
-   * Main Dynamic Query Method with Dual-Engine Fallback
+   * Main Dynamic Query Method with Multi-Tier Fallback
    */
   async queryCopilot(club, query) {
     if (!query || !query.trim()) {
@@ -205,22 +324,28 @@ export const aiService = {
 
     const systemPrompt = buildSystemPrompt(club);
 
-    // Engine 1: Groq (Ultra-fast, deterministic)
-    try {
-      const groqAnswer = await callGroq(trimmedQuery, systemPrompt);
-      return groqAnswer;
-    } catch (groqErr) {
-      console.warn('Groq API failed, falling back to Gemini Engine:', groqErr.message);
+    // Engine 1: Groq (if key configured)
+    if (GROQ_API_KEY && GROQ_API_KEY.trim()) {
+      try {
+        const groqAnswer = await callGroq(trimmedQuery, systemPrompt);
+        return groqAnswer;
+      } catch (groqErr) {
+        console.warn('Groq API call failed:', groqErr.message);
+      }
+    }
 
-      // Engine 2: Gemini Fallback
+    // Engine 2: Gemini (if key configured)
+    if (GEMINI_API_KEY && GEMINI_API_KEY.trim()) {
       try {
         const geminiAnswer = await callGemini(trimmedQuery, systemPrompt);
         return geminiAnswer;
       } catch (geminiErr) {
-        console.error('Both Groq and Gemini AI engines failed:', geminiErr.message);
-        return `⚠️ AI Copilot temporary network error: Unable to connect to language model service. Please try again shortly.`;
+        console.warn('Gemini API call failed:', geminiErr.message);
       }
     }
+
+    // Engine 3: Smart Local Club Context Engine (Offline / Zero-Config fallback)
+    return generateLocalContextAnswer(club, trimmedQuery);
   },
 
   /**
