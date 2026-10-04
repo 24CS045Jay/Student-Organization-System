@@ -121,13 +121,14 @@ export const clubService = {
     member.paid = 1;
 
     if (newPlan) {
-      member.type = newPlan;
+      member.type = newPlan.toLowerCase().includes('premium') ? 'Premium Pro Member' : 'Standard Member';
     }
 
-    const renewCost = member.type.includes('Premium') ? 999 : 499;
+    const isPremium = (member.type || '').toLowerCase().includes('premium') || (member.type || '').toLowerCase().includes('pro');
+    const renewCost = isPremium ? 999 : 499;
     member.history.push({
       date: new Date().toISOString().split('T')[0],
-      action: newPlan ? `Upgraded to ${newPlan}` : `Renewed Membership (${months} mo)`,
+      action: newPlan ? `Upgraded to ${member.type}` : `Renewed Membership (${months} mo)`,
       amt: renewCost
     });
 
@@ -1849,8 +1850,8 @@ export const clubService = {
         volunteersCount: 0
       },
       membershipTypes: [
-        { id: `mt-${id}-1`, name: 'Standard Member', price: membershipFee, durationMonths: 12, ticketDiscount: 15, merchDiscount: 10, perks: ['Discounted entry to workshops', 'Access to club hub', 'Digital Certificate'] },
-        { id: `mt-${id}-2`, name: 'Premium Pro Clubber', price: membershipFee * 2, durationMonths: 12, ticketDiscount: 35, merchDiscount: 20, perks: ['Priority workshop seating', 'Exclusive Merchandise pass', 'Mentorship access'] }
+        { id: `mt-${id}-1`, name: 'Standard Member', price: membershipFee, durationMonths: 12, ticketDiscount: 15, merchDiscount: 10, perks: ['15% Off Event Tickets & Hackathons', 'Digital Fast-Track QR Access Pass', 'Verified Participation Certificate'] },
+        { id: `mt-${id}-2`, name: 'Premium Pro Member', price: membershipFee * 2, durationMonths: 12, ticketDiscount: 40, merchDiscount: 20, perks: ['40% VIP Discount on All Campus Events & Summits', '20% Off Official Club Merchandise & Hoodies', 'VIP Front-Row Seating & Queue Skip Access', 'Free Welcome Swag & Official Merch Kit', '1-on-1 Core Executive Mentorship & Speaker Access', 'Gold-Tier Authenticated Digital Pass & Alumni Priority'] }
       ],
       members: clubPayload.adminEmail ? [
         {
@@ -2242,8 +2243,8 @@ export const clubService = {
         volunteersCount: 0
       },
       membershipTypes: [
-        { id: `mt-${id}-1`, name: 'Standard Member', price: membershipFee, durationMonths: 12, ticketDiscount: 15, merchDiscount: 10, perks: ['Discounted entry to workshops', 'Access to club hub', 'Digital Certificate'] },
-        { id: `mt-${id}-2`, name: 'Premium Pro Clubber', price: membershipFee * 2, durationMonths: 12, ticketDiscount: 35, merchDiscount: 20, perks: ['Priority workshop seating', 'Exclusive Merchandise pass', 'Mentorship access'] }
+        { id: `mt-${id}-1`, name: 'Standard Member', price: membershipFee, durationMonths: 12, ticketDiscount: 15, merchDiscount: 10, perks: ['15% Off Event Tickets & Hackathons', 'Digital Fast-Track QR Access Pass', 'Verified Participation Certificate'] },
+        { id: `mt-${id}-2`, name: 'Premium Pro Member', price: membershipFee * 2, durationMonths: 12, ticketDiscount: 40, merchDiscount: 20, perks: ['40% VIP Discount on All Campus Events & Summits', '20% Off Official Club Merchandise & Hoodies', 'VIP Front-Row Seating & Queue Skip Access', 'Free Welcome Swag & Official Merch Kit', '1-on-1 Core Executive Mentorship & Speaker Access', 'Gold-Tier Authenticated Digital Pass & Alumni Priority'] }
       ],
       members: [
         {

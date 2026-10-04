@@ -35,8 +35,39 @@ export const INITIAL_CLUBS_DATA = {
     announcements: [],
     purchaseOrders: [],
     membershipTypes: [
-      { id: '10000000-0000-0000-0000-000000000001', name: 'Standard Member', price: 499, duration_months: 12, benefits: 'Workshops & Hackathons' },
-      { id: '10000000-0000-0000-0000-000000000002', name: 'Premium Member', price: 999, duration_months: 12, benefits: 'VIP pass, swag & mentor 1-on-1' }
+      {
+        id: '10000000-0000-0000-0000-000000000001',
+        name: 'Standard Member',
+        price: 499,
+        durationMonths: 12,
+        duration_months: 12,
+        ticketDiscount: 15,
+        merchDiscount: 10,
+        benefits: '15% Off Tickets, Digital QR Pass, Verified Certificate',
+        perks: [
+          '15% Off Event Tickets & Hackathons',
+          'Digital Fast-Track QR Access Pass',
+          'Verified Participation Certificate'
+        ]
+      },
+      {
+        id: '10000000-0000-0000-0000-000000000002',
+        name: 'Premium Pro Member',
+        price: 999,
+        durationMonths: 12,
+        duration_months: 12,
+        ticketDiscount: 40,
+        merchDiscount: 20,
+        benefits: '40% VIP Off, 20% Merch, VIP Seating, Free Swag Kit, 1-on-1 Mentorship, Gold Digital Pass',
+        perks: [
+          '40% VIP Event Discount on All Campus Events & Summits',
+          '20% Off Official Club Merchandise & Hoodies',
+          'VIP Front-Row Seating & Queue Skip Access',
+          'Free Welcome Swag & Official Merch Kit',
+          '1-on-1 Core Executive Mentorship & Speaker Access',
+          'Gold-Tier Authenticated Digital Pass & Alumni Priority'
+        ]
+      }
     ],
     finance: { totalIncome: 0, totalExpenses: 0, netBalance: 0, incomeSources: [], expensesList: [] },
     stats: { membersCount: 0 }
@@ -66,7 +97,39 @@ export const INITIAL_CLUBS_DATA = {
     announcements: [],
     purchaseOrders: [],
     membershipTypes: [
-      { id: '10000000-0000-0000-0000-000000000003', name: 'Standard Arts Member', price: 499, duration_months: 12, benefits: 'Concerts & Art Exhibitions' }
+      {
+        id: '10000000-0000-0000-0000-000000000003',
+        name: 'Standard Member',
+        price: 499,
+        durationMonths: 12,
+        duration_months: 12,
+        ticketDiscount: 15,
+        merchDiscount: 10,
+        benefits: '15% Off Tickets, Digital QR Pass, Verified Certificate',
+        perks: [
+          '15% Off Concerts & Cultural Pass',
+          'Fast-Track Digital QR Entry',
+          'Official Cultural Participation Certificate'
+        ]
+      },
+      {
+        id: '10000000-0000-0000-0000-000000000004',
+        name: 'Premium Pro Member',
+        price: 999,
+        durationMonths: 12,
+        duration_months: 12,
+        ticketDiscount: 40,
+        merchDiscount: 20,
+        benefits: '40% VIP Off, 20% Merch, VIP Front Row, Free Swag, Artist Meet & Greet, Gold Pass',
+        perks: [
+          '40% VIP Discount on All Festivals & Concerts',
+          '20% Off Official Fest Merch & Hoodies',
+          'VIP Front-Row Reserved Seating & Queue Skip',
+          'Free Welcome Fest Merch & Badge Kit',
+          '1-on-1 Artist & Performer Meet & Greet Access',
+          'Gold-Tier Authenticated Cultural Pass'
+        ]
+      }
     ],
     finance: { totalIncome: 0, totalExpenses: 0, netBalance: 0, incomeSources: [], expensesList: [] },
     stats: { membersCount: 0 }
@@ -96,7 +159,39 @@ export const INITIAL_CLUBS_DATA = {
     announcements: [],
     purchaseOrders: [],
     membershipTypes: [
-      { id: '10000000-0000-0000-0000-000000000004', name: 'Sports Athlete Pass', price: 499, duration_months: 12, benefits: 'Tournaments & Team Kit' }
+      {
+        id: '10000000-0000-0000-0000-000000000005',
+        name: 'Standard Member',
+        price: 499,
+        durationMonths: 12,
+        duration_months: 12,
+        ticketDiscount: 15,
+        merchDiscount: 10,
+        benefits: '15% Off Tournaments, Digital QR Pass, Verified Certificate',
+        perks: [
+          '15% Off Tournament Entry & Matches',
+          'Sports Digital Arena Access Pass',
+          'Official Athlete Participation Certificate'
+        ]
+      },
+      {
+        id: '10000000-0000-0000-0000-000000000006',
+        name: 'Premium Pro Member',
+        price: 999,
+        durationMonths: 12,
+        duration_months: 12,
+        ticketDiscount: 40,
+        merchDiscount: 20,
+        benefits: '40% VIP Off, 20% Kit Discount, VIP Box Seating, Free Team Jersey Kit, Coach Mentorship, Gold Athlete Pass',
+        perks: [
+          '40% VIP Discount on All Leagues & Tournaments',
+          '20% Off Official Campus Sports Kits & Jerseys',
+          'VIP Stadium Box Seating & Priority Queue Entry',
+          'Free Official Team Jersey & Sports Kit Pack',
+          '1-on-1 Head Coach Mentorship & Fitness Clinics',
+          'Gold-Tier Certified Athlete Digital Pass'
+        ]
+      }
     ],
     finance: { totalIncome: 0, totalExpenses: 0, netBalance: 0, incomeSources: [], expensesList: [] },
     stats: { membersCount: 0 }

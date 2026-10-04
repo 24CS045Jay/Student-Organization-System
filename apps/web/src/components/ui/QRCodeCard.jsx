@@ -101,6 +101,7 @@ export const DigitalMemberCard = ({
   if (!member) return null;
 
   const isExpired = new Date(member.exp) < new Date() || member.paid === 0;
+  const isPremium = (member.type || '').toLowerCase().includes('premium') || (member.type || '').toLowerCase().includes('pro');
 
   const handleCopy = () => {
     navigator.clipboard?.writeText(member.id);
@@ -117,14 +118,16 @@ export const DigitalMemberCard = ({
         borderRadius: '24px',
         overflow: 'hidden',
         border: '3.5px solid #121212',
-        boxShadow: '6px 6px 0px #121212',
-        background: 'linear-gradient(180deg, #FFFFFF 0%, #FFFDF9 100%)'
+        boxShadow: isPremium ? '6px 6px 0px #7C3AED' : '6px 6px 0px #121212',
+        background: isPremium 
+          ? 'linear-gradient(180deg, #FFFFFF 0%, #FFF5F9 100%)' 
+          : 'linear-gradient(180deg, #FFFFFF 0%, #FFFDF9 100%)'
       }}
     >
       {/* Header Stamp */}
       <div
         style={{
-          backgroundColor: accentColor,
+          backgroundColor: isPremium ? '#FFD6E5' : accentColor,
           padding: '18px 20px',
           borderBottom: '3px solid #121212',
           display: 'flex',
@@ -134,12 +137,12 @@ export const DigitalMemberCard = ({
       >
         <div>
           <span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.85 }}>
-            Official Digital ID Card
+            {isPremium ? '⭐ VIP Digital Pass' : 'Official Digital ID Card'}
           </span>
           <h4 style={{ fontSize: '16px', fontWeight: 900, margin: '2px 0 0' }}>{clubName}</h4>
         </div>
-        <Badge variant={isExpired ? 'pink' : 'green'}>
-          {isExpired ? '⚠️ Expired' : '✓ Active Member'}
+        <Badge variant={isExpired ? 'pink' : isPremium ? 'purple' : 'green'}>
+          {isExpired ? '⚠️ Expired' : isPremium ? '⭐ Premium Pro' : '✓ Standard Member'}
         </Badge>
       </div>
 
@@ -230,7 +233,9 @@ export const DigitalMemberCard = ({
           </div>
           <div>
             <span style={{ color: 'var(--ink-muted)', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase' }}>Discounts</span>
-            <div style={{ fontWeight: 900 }}>Up to 40% Off</div>
+            <div style={{ fontWeight: 900, color: isPremium ? '#7C3AED' : '#121212' }}>
+              {isPremium ? '40% VIP + 20% Merch' : '15% Off Events'}
+            </div>
           </div>
         </div>
 
