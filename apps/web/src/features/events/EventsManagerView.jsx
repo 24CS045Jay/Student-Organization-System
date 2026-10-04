@@ -1,13 +1,23 @@
 import React, { useState } from 'react';
 import { Card, Button, Badge, Drawer, Modal, ProgressBar } from '../../components/ui/index';
-import { clubService } from '../../services/clubService';
+import { clubService } from '../../services/clubService';https://github.githubassets.com/images/spinners/octocat-spinner-128.gif
 import { Calendar, Plus, Edit, Trash2, Users, DollarSign, TrendingUp, CheckCircle, Clock, Eye, Globe, XCircle, FileSpreadsheet, Printer, Download } from 'lucide-react';
 
 export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, onNavigate }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedEventForProfit, setSelectedEventForProfit] = useState(null);
+  const [selectedEventForTasks, setSelectedEventForTasks] = useState(null);
   const [editingEvent, setEditingEvent] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Task Assignment State
+  const [assignTaskForm, setAssignTaskForm] = useState({
+    title: '',
+    volunteer: '',
+    priority: 'High',
+    deadline: '',
+    notes: ''
+  });
 
   const [formData, setFormData] = useState({
     title: '',
@@ -35,7 +45,11 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
     description: ''
   });
 
+  const club = clubService.getClub(activeClub.id);
   const events = clubService.getEvents(activeClub.id);
+  const allTasks = clubService.getTasks(activeClub.id);
+  const volunteers = club.volunteers || [];
+  const members = club.members || [];
 
   const filteredEvents = events.filter(ev => {
     const s = (ev.status || '').toLowerCase().trim();
@@ -135,20 +149,80 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
     }
   };
 
+  // Assign task to volunteer for selected event
+  const handleAssignEventTask = (e) => {
+    e.preventDefault();
+    if (!selectedEventForTasks || !assignTaskForm.title.trim()) return;
+
+    try {
+      const chosenVolunteer = assignTaskForm.volunteer || (volunteers[0]?.name || members[0]?.name || 'Volunteer Lead');
+      const foundVol = volunteers.find(v => v.name === chosenVolunteer);
+
+      clubService.createTask(
+        activeClub.id,
+        {
+          title: assignTaskForm.title.trim(),
+          owner: chosenVolunteer,
+          assignedTo: chosenVolunteer,
+          assignedVolunteerEmail: foundVol?.email || '',
+          eventId: selectedEventForTasks.id,
+          eventName: selectedEventForTasks.title,
+          priority: assignTaskForm.priority || 'High',
+          deadline: assignTaskForm.deadline || selectedEventForTasks.date || new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0],
+          notes: assignTaskForm.notes.trim(),
+          status: 'Pending'
+        },
+        session
+      );
+      setAssignTaskForm({
+        title: '',
+        volunteer: '',
+        priority: 'High',
+        deadline: selectedEventForTasks.date || '',
+        notes: ''
+      });
+      if (onToast) onToast(`✅ Assigned task "${assignTaskForm.title.trim()}" to ${chosenVolunteer}!`);
+      if (onDataChange) onDataChange();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleUpdateTaskStatus = (taskId, newStatus, newProgress) => {
+    try {
+      clubService.updateTaskStatus(activeClub.id, taskId, newStatus, newProgress, session);
+      if (onToast) onToast(`📋 Task status updated to ${newStatus}`);
+      if (onDataChange) onDataChange();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteTask = (taskId, title) => {
+    if (!window.confirm(`Delete task "${title}"?`)) return;
+    try {
+      clubService.deleteTask(activeClub.id, taskId, session);
+      if (onToast) onToast(`🗑️ Task deleted: "${title}"`);
+      if (onDataChange) onDataChange();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ fontSize: '26px', fontWeight: 900, margin: 0 }}>
-            Events Management & Capacity Control
+            Events Management & Volunteer Logistics
           </h1>
           <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)' }}>
-            Configure schedules, ticket tiers, registration limits, and event profitability analysis for {activeClub.name}.
+            Schedule events, assign tasks to chosen volunteers, control ticketing, and track real-time logistics readiness for {activeClub.name}.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <Button variant="black" size="sm" onClick={() => onNavigate && onNavigate('browse-events')} icon={Globe}>
-            View Student Portal
+          <Button variant="black" size="sm" onClick={() => onNavigate && onNavigate('tasks-kanban')} icon={CheckSquare}>
+            Logistics Kanban
           </Button>
           <Button variant="black" size="sm" onClick={() => onNavigate && onNavigate('qr-checkin')}>
             QR Check-in Desk
@@ -191,6 +265,7 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
               <th>Date & Location</th>
               <th>Capacity & Bookings</th>
               <th>Pricing (Mem / Non)</th>
+              <th>Logistics & Tasks Status</th>
               <th>Live Status</th>
               <th>Status Action</th>
               <th>Actions</th>
@@ -199,7 +274,7 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
           <tbody>
             {filteredEvents.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: '32px', fontWeight: 800, color: 'var(--ink-muted)' }}>
+                <td colSpan={9} style={{ textAlign: 'center', padding: '32px', fontWeight: 800, color: 'var(--ink-muted)' }}>
                   No events found in this category. Click "Create New Event" above to publish one!
                 </td>
               </tr>
@@ -207,8 +282,11 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
               filteredEvents.map((ev) => {
                 const isPublished = (ev.status || '').toLowerCase() === 'published';
                 const seatsPct = Math.round((ev.sold / ev.capacity) * 100);
-                const estGross = (ev.sold * ((ev.memberPrice + ev.nonMemberPrice) / 2));
-                const totalExp = Object.values(ev.budget || {}).reduce((a, b) => a + b, 0);
+
+                // Event tasks calculation
+                const eventTasks = allTasks.filter(t => t.eventId === ev.id || t.eventName === ev.title);
+                const doneTasks = eventTasks.filter(t => t.status === 'Done' || t.stage === 'Done');
+                const taskPct = eventTasks.length > 0 ? Math.round((doneTasks.length / eventTasks.length) * 100) : 0;
 
                 return (
                   <tr key={ev.id}>
@@ -223,7 +301,7 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
                       <div style={{ fontWeight: 800 }}>{ev.date}</div>
                       <div style={{ fontSize: '11px', color: '#71717A' }}>{ev.location}</div>
                     </td>
-                    <td style={{ minWidth: '160px' }}>
+                    <td style={{ minWidth: '150px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 900, marginBottom: '3px' }}>
                         <span>{ev.sold} Sold</span>
                         <span>{ev.capacity} Cap ({seatsPct}%)</span>
@@ -233,6 +311,36 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
                     <td>
                       <span style={{ fontWeight: 900, color: '#059669' }}>₹{ev.memberPrice}</span> / <span>₹{ev.nonMemberPrice}</span>
                     </td>
+
+                    {/* Logistics & Tasks Status Column */}
+                    <td style={{ minWidth: '160px' }}>
+                      {eventTasks.length === 0 ? (
+                        <button
+                          onClick={() => {
+                            setSelectedEventForTasks(ev);
+                            setAssignTaskForm({ ...assignTaskForm, deadline: ev.date || '' });
+                          }}
+                          className="neo-btn neo-btn-white neo-btn-sm"
+                          style={{ fontSize: '11px', padding: '3px 8px', borderStyle: 'dashed' }}
+                        >
+                          + Assign Volunteer
+                        </button>
+                      ) : (
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 900, marginBottom: '2px' }}>
+                            <span>{doneTasks.length}/{eventTasks.length} Tasks Done</span>
+                            <span style={{ color: taskPct === 100 ? '#059669' : '#D97706' }}>{taskPct}%</span>
+                          </div>
+                          <ProgressBar value={doneTasks.length} max={eventTasks.length} color={taskPct === 100 ? 'var(--accent-green)' : 'var(--accent-yellow)'} height={8} />
+                          <div style={{ marginTop: '3px' }}>
+                            <Badge variant={taskPct === 100 ? 'green' : 'yellow'} style={{ fontSize: '9px', padding: '1px 5px' }}>
+                              {taskPct === 100 ? '● Logistics Ready' : '● In Preparation'}
+                            </Badge>
+                          </div>
+                        </div>
+                      )}
+                    </td>
+
                     <td>
                       <Badge variant={isPublished ? 'green' : ev.status === 'Draft' ? 'yellow' : 'black'}>
                         {isPublished ? '● Published (Live)' : ev.status || 'Draft'}
@@ -262,6 +370,18 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <Button
+                          variant="yellow"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedEventForTasks(ev);
+                            setAssignTaskForm({ ...assignTaskForm, deadline: ev.date || '' });
+                          }}
+                          icon={CheckSquare}
+                          title="Assign Tasks to Volunteers for this Event"
+                        >
+                          Tasks
+                        </Button>
                         <Button
                           variant="purple"
                           size="sm"
@@ -293,6 +413,250 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
           </tbody>
         </table>
       </div>
+
+      {/* Event Logistics & Volunteer Task Assignment Drawer */}
+      <Drawer
+        isOpen={Boolean(selectedEventForTasks)}
+        onClose={() => setSelectedEventForTasks(null)}
+        title={`📋 Volunteer Tasks & Logistics — ${selectedEventForTasks?.title}`}
+        headerColor="var(--accent-yellow)"
+      >
+        {selectedEventForTasks && (() => {
+          const currentEventTasks = allTasks.filter(t => t.eventId === selectedEventForTasks.id || t.eventName === selectedEventForTasks.title);
+          const doneCurrent = currentEventTasks.filter(t => t.status === 'Done' || t.stage === 'Done');
+          const readyPct = currentEventTasks.length > 0 ? Math.round((doneCurrent.length / currentEventTasks.length) * 100) : 0;
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Event Info Card */}
+              <div style={{ padding: '16px', backgroundColor: '#FAF5EE', border: '2.5px solid #000', borderRadius: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '16px', fontWeight: 900, margin: 0 }}>{selectedEventForTasks.title}</h3>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-muted)' }}>
+                      📅 {selectedEventForTasks.date} at {selectedEventForTasks.time} • 📍 {selectedEventForTasks.location}
+                    </div>
+                  </div>
+                  <Badge variant={readyPct === 100 ? 'green' : 'yellow'}>
+                    {readyPct === 100 ? 'Logistics Ready' : 'Logistics In Progress'}
+                  </Badge>
+                </div>
+
+                <div style={{ marginTop: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 900, marginBottom: '3px' }}>
+                    <span>Logistics Readiness</span>
+                    <span>{doneCurrent.length}/{currentEventTasks.length} Completed ({readyPct}%)</span>
+                  </div>
+                  <ProgressBar value={doneCurrent.length} max={currentEventTasks.length || 1} color={readyPct === 100 ? 'var(--accent-green)' : 'var(--accent-yellow)'} height={10} />
+                </div>
+              </div>
+
+              {/* Form to Assign New Task to Chosen Volunteer */}
+              <Card title="➕ Assign Task to Chosen Volunteer" headerBg="var(--accent-yellow)">
+                <form onSubmit={handleAssignEventTask} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div>
+                    <label className="neo-label">Task Title *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Set up QR Gate Scanner & ID Desk"
+                      value={assignTaskForm.title}
+                      onChange={(e) => setAssignTaskForm({ ...assignTaskForm, title: e.target.value })}
+                      className="neo-input"
+                    />
+                    {/* Quick suggestion tags */}
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                      {['QR Gate Check-in Desk', 'Stage Lighting & Audio', 'Attendee Welcome Kits', 'Refreshments & Snack Bar', 'Sponsor Booth Desk'].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setAssignTaskForm({ ...assignTaskForm, title: preset })}
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 800,
+                            padding: '2px 6px',
+                            backgroundColor: '#FFFFFF',
+                            border: '1px solid #121212',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          + {preset}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label className="neo-label">Choose Volunteer *</label>
+                      <select
+                        required
+                        value={assignTaskForm.volunteer}
+                        onChange={(e) => setAssignTaskForm({ ...assignTaskForm, volunteer: e.target.value })}
+                        className="neo-input neo-select"
+                      >
+                        <option value="">-- Choose Volunteer --</option>
+                        {volunteers.map((v) => (
+                          <option key={v.id || v.email} value={v.name}>
+                            👤 {v.name} ({v.email || 'Volunteer'})
+                          </option>
+                        ))}
+                        {members.map((m) => (
+                          <option key={m.id} value={m.name}>
+                            👥 {m.name} (Member)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="neo-label">Priority</label>
+                      <select
+                        value={assignTaskForm.priority}
+                        onChange={(e) => setAssignTaskForm({ ...assignTaskForm, priority: e.target.value })}
+                        className="neo-input neo-select"
+                      >
+                        <option value="Urgent">Urgent</option>
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="neo-label">Target Deadline</label>
+                    <input
+                      type="date"
+                      value={assignTaskForm.deadline || selectedEventForTasks.date}
+                      onChange={(e) => setAssignTaskForm({ ...assignTaskForm, deadline: e.target.value })}
+                      className="neo-input"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="neo-label">Logistics Instructions & Notes</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Specific requirements, equipment, reporting time..."
+                      value={assignTaskForm.notes}
+                      onChange={(e) => setAssignTaskForm({ ...assignTaskForm, notes: e.target.value })}
+                      className="neo-input"
+                    />
+                  </div>
+
+                  <Button variant="yellow" type="submit" style={{ marginTop: '4px' }}>
+                    Assign Task to Volunteer
+                  </Button>
+                </form>
+              </Card>
+
+              {/* Tasks Assigned to Volunteers for this event */}
+              <div>
+                <h4 style={{ fontSize: '15px', fontWeight: 900, marginBottom: '10px' }}>
+                  Assigned Volunteer Tasks ({currentEventTasks.length})
+                </h4>
+
+                {currentEventTasks.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', backgroundColor: '#FAF5EE', border: '1.5px dashed #000', borderRadius: '12px', fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)' }}>
+                    No volunteer tasks assigned for this event yet. Use the form above to assign duties to volunteers!
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {currentEventTasks.map((t) => {
+                      const isDone = t.status === 'Done' || t.stage === 'Done';
+                      const isInProgress = t.status === 'In Progress' || t.stage === 'In Progress';
+                      const isPending = !isDone && !isInProgress;
+
+                      return (
+                        <div
+                          key={t.id}
+                          style={{
+                            padding: '14px',
+                            backgroundColor: isDone ? '#F0FDF4' : '#FFFFFF',
+                            border: '2px solid #121212',
+                            borderRadius: '12px',
+                            boxShadow: '2px 2px 0px #121212',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                              <div style={{ fontWeight: 900, fontSize: '14px' }}>{t.title}</div>
+                              <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--ink)', marginTop: '2px' }}>
+                                👤 Assigned Volunteer: <strong>{t.owner || t.assignedTo || 'Unassigned'}</strong>
+                              </div>
+                              <div style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 700, marginTop: '2px' }}>
+                                Due: {t.deadline} • Priority: <Badge variant={t.priority === 'Urgent' ? 'pink' : t.priority === 'High' ? 'yellow' : 'blue'} style={{ fontSize: '10px' }}>{t.priority}</Badge>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Badge variant={isDone ? 'green' : isInProgress ? 'purple' : 'yellow'}>
+                                {t.status || 'Pending'}
+                              </Badge>
+                              <Button
+                                variant="white"
+                                size="sm"
+                                onClick={() => handleDeleteTask(t.id, t.title)}
+                                icon={Trash2}
+                                title="Remove Task"
+                                style={{ padding: '2px 6px' }}
+                              />
+                            </div>
+                          </div>
+
+                          {t.notes && (
+                            <div style={{ fontSize: '11px', fontWeight: 700, color: '#4B5563', backgroundColor: '#F3F4F6', padding: '6px 8px', borderRadius: '6px' }}>
+                              📝 {t.notes}
+                            </div>
+                          )}
+
+                          {/* Quick Manager Status Toggle */}
+                          <div style={{ display: 'flex', gap: '6px', paddingTop: '6px', borderTop: '1px dashed #D4D4D8' }}>
+                            {isPending && (
+                              <Button
+                                variant="yellow"
+                                size="sm"
+                                style={{ width: '100%', fontSize: '11px', padding: '4px 8px' }}
+                                onClick={() => handleUpdateTaskStatus(t.id, 'In Progress', 50)}
+                              >
+                                Mark In Progress →
+                              </Button>
+                            )}
+                            {isInProgress && (
+                              <Button
+                                variant="green"
+                                size="sm"
+                                style={{ width: '100%', fontSize: '11px', padding: '4px 8px' }}
+                                onClick={() => handleUpdateTaskStatus(t.id, 'Done', 100)}
+                              >
+                                ✓ Mark Verified & Done
+                              </Button>
+                            )}
+                            {isDone && (
+                              <Button
+                                variant="white"
+                                size="sm"
+                                style={{ width: '100%', fontSize: '11px', padding: '4px 8px' }}
+                                onClick={() => handleUpdateTaskStatus(t.id, 'In Progress', 50)}
+                              >
+                                ↩ Reopen Task
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+      </Drawer>
 
       {/* Profitability Drawer */}
       <Drawer

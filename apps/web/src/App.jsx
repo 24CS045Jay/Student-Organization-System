@@ -31,6 +31,7 @@ import { OrdersView } from './features/merchandise/OrdersView';
 
 import { TasksKanbanView } from './features/volunteers/TasksKanbanView';
 import { VolunteerPortalView } from './features/volunteers/VolunteerPortalView';
+import { VolunteersListView } from './features/volunteers/VolunteersListView';
 import { LeaderboardView } from './features/volunteers/LeaderboardView';
 import { FundraisersView } from './features/volunteers/FundraisersView';
 
@@ -296,7 +297,7 @@ export default function App() {
     student: ['my-membership', 'browse-events', 'my-tickets', 'merch-shop', 'my-orders', 'my-certificates', 'announcements-feed', 'feedback'],
     member: ['my-membership', 'browse-events', 'my-tickets', 'merch-shop', 'my-orders', 'my-certificates', 'announcements-feed', 'feedback'],
     volunteer: ['tasks-kanban', 'volunteer-portal', 'my-reimbursements', 'leaderboard', 'announcements-feed'],
-    event_manager: ['events-list', 'qr-checkin', 'attendance', 'event-profit', 'reports-hub', 'feedback', 'announcements-mgmt'],
+    event_manager: ['events-list', 'tasks-kanban', 'volunteers-list', 'qr-checkin', 'attendance', 'event-profit', 'reports-hub', 'feedback', 'announcements-mgmt'],
     treasurer: ['financial-dash', 'income-ledger', 'expenses-ledger', 'reimbursements-mgmt', 'budget-mgmt', 'sponsors', 'donations', 'reports-hub'],
     admin: [
       'club-dash', 'members-list', 'member-verify', 'events-list', 'inventory', 'fundraisers',
@@ -363,8 +364,9 @@ export default function App() {
       case 'tasks-kanban':
         return <TasksKanbanView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
       case 'volunteer-portal':
-      case 'volunteers-list':
         return <VolunteerPortalView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} />;
+      case 'volunteers-list':
+        return <VolunteersListView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} onNavigate={setActiveTab} />;
       case 'leaderboard':
         return <LeaderboardView session={session} activeClub={activeClub} />;
       case 'fundraisers':

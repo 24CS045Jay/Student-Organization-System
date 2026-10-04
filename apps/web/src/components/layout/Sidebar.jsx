@@ -60,6 +60,8 @@ export const Sidebar = ({
 
     event_manager: [
       { id: 'events-list', label: 'Events & Creation', icon: Calendar },
+      { id: 'tasks-kanban', label: 'Event Tasks & Logistics', icon: CheckSquare, badge: 'Tasks' },
+      { id: 'volunteers-list', label: 'Volunteers Roster', icon: Users },
       { id: 'qr-checkin', label: 'QR Scanner Check-in', icon: QrCode, badge: 'Live' },
       { id: 'attendance', label: 'Attendance & Stats', icon: UserCheck },
       { id: 'event-profit', label: 'Event Profitability', icon: TrendingUp },

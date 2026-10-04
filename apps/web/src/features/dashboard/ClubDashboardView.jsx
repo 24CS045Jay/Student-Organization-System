@@ -140,8 +140,12 @@ export const ClubDashboardView = ({ session, activeClub, onNavigate }) => {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {events.slice(0, 2).map((ev) => {
+              {events.slice(0, 3).map((ev) => {
                 const pct = Math.round((ev.sold / ev.capacity) * 100);
+                const evTasks = tasks.filter(t => t.eventId === ev.id || t.eventName === ev.title);
+                const doneEvTasks = evTasks.filter(t => t.status === 'Done' || t.stage === 'Done');
+                const taskPct = evTasks.length > 0 ? Math.round((doneEvTasks.length / evTasks.length) * 100) : 0;
+
                 return (
                   <div
                     key={ev.id}
@@ -157,12 +161,19 @@ export const ClubDashboardView = ({ session, activeClub, onNavigate }) => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <h4 style={{ fontSize: '15px', fontWeight: 900, margin: 0 }}>{ev.title}</h4>
-                      <Badge variant={ev.sold >= ev.capacity ? 'black' : 'green'}>
-                        {ev.sold >= ev.capacity ? 'Sold Out' : `${ev.sold}/${ev.capacity} Seats`}
-                      </Badge>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {evTasks.length > 0 && (
+                          <Badge variant={taskPct === 100 ? 'green' : 'yellow'} style={{ fontSize: '10px' }}>
+                            {doneEvTasks.length}/{evTasks.length} Tasks
+                          </Badge>
+                        )}
+                        <Badge variant={ev.sold >= ev.capacity ? 'black' : 'green'}>
+                          {ev.sold >= ev.capacity ? 'Sold Out' : `${ev.sold}/${ev.capacity} Seats`}
+                        </Badge>
+                      </div>
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--ink-muted)', fontWeight: 700 }}>
-                      {ev.date} • {ev.location}
+                      📅 {ev.date} • 📍 {ev.location}
                     </div>
                     <ProgressBar value={ev.sold} max={ev.capacity} color="var(--accent-green)" height={8} />
                   </div>

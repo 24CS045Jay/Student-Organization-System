@@ -884,39 +884,62 @@ export const clubService = {
   // --- Tasks & Volunteers (FR-12 to FR-14) ---
   getTasks: (orgId) => {
     const club = dbInstance.getClub(orgId);
-    return [...club.tasks];
+    return [...(club.tasks || [])];
+  },
+
+  getEventTasks: (orgId, eventId) => {
+    const club = dbInstance.getClub(orgId);
+    return (club.tasks || []).filter(t => t.eventId === eventId);
   },
 
   updateTaskStatus: (orgId, taskId, newStatus, newProgress, session) => {
     const club = dbInstance.getClub(orgId);
-    const task = club.tasks.find(t => t.id === taskId);
+    const task = (club.tasks || []).find(t => t.id === taskId);
     if (!task) throw new Error('Task not found');
 
     const oldStatus = task.status;
     task.status = newStatus;
     if (newProgress !== undefined) task.progress = newProgress;
     if (newStatus === 'Done') task.progress = 100;
+    if (newStatus === 'Pending' && (task.progress === undefined || task.progress === 100)) task.progress = 0;
 
-    dbInstance.logAudit(orgId, session?.email, session?.role, 'Updated Task Kanban', `Task "${task.title}" moved to ${newStatus}`, oldStatus, newStatus);
+    dbInstance.logAudit(orgId, session?.email, session?.role, 'Updated Task Status', `Task "${task.title}" moved to ${newStatus}`, oldStatus, newStatus);
     dbInstance.save();
     supabaseSync.syncTask(orgId, task);
     return task;
   },
 
   createTask: (orgId, taskData, session) => {
+    if (session?.role === 'volunteer' || session?.role === 'student' || session?.role === 'member') {
+      throw new Error('Volunteers are not authorized to create tasks. Tasks must be assigned by an Event Manager or Club Admin.');
+    }
     const club = dbInstance.getClub(orgId);
+    if (!club.tasks) club.tasks = [];
+
+    let eventName = taskData.eventName || '';
+    if (taskData.eventId && !eventName && club.events) {
+      const foundEvent = club.events.find(e => e.id === taskData.eventId);
+      if (foundEvent) eventName = foundEvent.title;
+    }
+
     const newTask = {
       id: `tsk-${Date.now().toString(36)}`,
       title: taskData.title,
-      owner: taskData.owner || 'Unassigned',
-      deadline: taskData.deadline || '2026-10-25',
+      owner: taskData.owner || taskData.assignedTo || 'Unassigned',
+      assignedTo: taskData.assignedTo || taskData.owner || 'Unassigned',
+      assignedVolunteerEmail: taskData.assignedVolunteerEmail || '',
+      eventId: taskData.eventId || null,
+      eventName: eventName || 'General Operations',
+      deadline: taskData.deadline || new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0],
       priority: taskData.priority || 'Medium',
       status: taskData.status || 'Pending',
-      progress: taskData.status === 'Done' ? 100 : 0,
-      notes: taskData.notes || ''
+      progress: taskData.status === 'Done' ? 100 : (Number(taskData.progress) || 0),
+      notes: taskData.notes || '',
+      assignedBy: session?.name || 'Event Manager',
+      createdAt: new Date().toISOString()
     };
     club.tasks.unshift(newTask);
-    dbInstance.logAudit(orgId, session?.email, session?.role, 'Created Task', `Created task "${newTask.title}" for ${newTask.owner}`, 'None', newTask.id);
+    dbInstance.logAudit(orgId, session?.email, session?.role, 'Created Task', `Created task "${newTask.title}" assigned to ${newTask.owner}${newTask.eventName ? ` for event "${newTask.eventName}"` : ''}`, 'None', newTask.id);
     dbInstance.save();
     supabaseSync.syncTask(orgId, newTask);
     return newTask;
@@ -925,7 +948,100 @@ export const clubService = {
   // --- Tasks & Volunteers (FR-12 to FR-14) ---
   getVolunteers: (orgId) => {
     const club = dbInstance.getClub(orgId);
-    return club.volunteers || [];
+    if (!club.volunteers) club.volunteers = [];
+
+    // Also auto-incorporate any registered user with role 'volunteer' for this club if not present
+    const clubVolUsers = (dbInstance.data.users || []).filter(
+      u => (u.orgId === orgId || u.club_id === orgId) && u.role === 'volunteer'
+    );
+
+    clubVolUsers.forEach(u => {
+      const exists = club.volunteers.find(
+        v => (v.email && (v.email.toLowerCase() === (u.clubEmail || '').toLowerCase() || v.email.toLowerCase() === (u.personalEmail || '').toLowerCase())) ||
+             (v.name && v.name.toLowerCase() === (u.name || '').toLowerCase())
+      );
+      if (!exists) {
+        const initialHours = Number(u.service_hours) || 24;
+        club.volunteers.push({
+          id: `VOL-${club.prefix || 'CLB'}-${Math.floor(100 + Math.random() * 900)}`,
+          name: u.name,
+          email: u.clubEmail || u.personalEmail,
+          phone: u.phone || '+91 98250 11223',
+          department: u.department || 'Computer Engineering',
+          roleTitle: u.department ? `${u.department} Volunteer` : 'Event Operations Volunteer',
+          hours: initialHours,
+          service_hours: initialHours,
+          badge: initialHours >= 100 ? 'Gold Legend (100h+)' : initialHours >= 50 ? 'Silver Contributor (50h+)' : initialHours >= 25 ? 'Bronze Contributor (25h+)' : 'Bronze Contributor',
+          rating: Number(u.rating) || 4.9,
+          skills: ['Event Logistics', 'Gate Registration', 'Stage AV'],
+          status: 'Active',
+          joinedDate: '2026-08-15'
+        });
+      }
+    });
+
+    return [...club.volunteers];
+  },
+
+  addVolunteer: (orgId, volData, session) => {
+    const club = dbInstance.getClub(orgId);
+    if (!club.volunteers) club.volunteers = [];
+
+    const hours = Number(volData.hours) || 0;
+    const newVol = {
+      id: `VOL-${club.prefix || 'CLB'}-${Math.floor(100 + Math.random() * 900)}`,
+      name: volData.name.trim(),
+      email: volData.email.trim(),
+      phone: volData.phone ? volData.phone.trim() : '+91 98250 00000',
+      department: volData.department || 'Computer Engineering',
+      roleTitle: volData.roleTitle || 'Event Operations Volunteer',
+      hours: hours,
+      service_hours: hours,
+      badge: hours >= 100 ? 'Gold Legend (100h+)' : hours >= 50 ? 'Silver Contributor (50h+)' : hours >= 25 ? 'Bronze Contributor (25h+)' : 'Bronze Contributor',
+      rating: Number(volData.rating) || 5.0,
+      skills: Array.isArray(volData.skills) ? volData.skills : (volData.skills ? volData.skills.split(',').map(s => s.trim()) : ['Event Logistics', 'Operations']),
+      status: volData.status || 'Active',
+      joinedDate: new Date().toISOString().split('T')[0]
+    };
+
+    club.volunteers.unshift(newVol);
+    dbInstance.logAudit(orgId, session?.email, session?.role, 'Registered Volunteer', `Added volunteer ${newVol.name} (${newVol.email}) to roster`, 'None', newVol.id);
+    dbInstance.save();
+    supabaseSync.syncVolunteer(orgId, newVol);
+    return newVol;
+  },
+
+  updateVolunteer: (orgId, volId, updateData, session) => {
+    const club = dbInstance.getClub(orgId);
+    if (!club.volunteers) club.volunteers = [];
+
+    const vol = club.volunteers.find(v => v.id === volId);
+    if (!vol) throw new Error('Volunteer not found');
+
+    if (updateData.name) vol.name = updateData.name.trim();
+    if (updateData.email) vol.email = updateData.email.trim();
+    if (updateData.phone) vol.phone = updateData.phone.trim();
+    if (updateData.department) vol.department = updateData.department;
+    if (updateData.roleTitle) vol.roleTitle = updateData.roleTitle;
+    if (updateData.status) vol.status = updateData.status;
+    if (updateData.skills) {
+      vol.skills = Array.isArray(updateData.skills) ? updateData.skills : updateData.skills.split(',').map(s => s.trim());
+    }
+    if (updateData.rating !== undefined) vol.rating = Number(Number(updateData.rating).toFixed(2));
+    if (updateData.hours !== undefined) {
+      const h = Number(updateData.hours);
+      vol.hours = h;
+      vol.service_hours = h;
+      if (h >= 100) vol.badge = 'Gold Legend (100h+)';
+      else if (h >= 50) vol.badge = 'Silver Contributor (50h+)';
+      else if (h >= 25) vol.badge = 'Bronze Contributor (25h+)';
+      else vol.badge = 'Bronze Contributor';
+    }
+
+    dbInstance.logAudit(orgId, session?.email, session?.role, 'Updated Volunteer Profile', `Updated details for volunteer ${vol.name} (${vol.id})`, '', '');
+    dbInstance.save();
+    supabaseSync.syncVolunteer(orgId, vol);
+    return vol;
   },
 
   getVolunteerForUser: (orgId, session) => {
@@ -1583,6 +1699,9 @@ export const clubService = {
   },
 
   deleteTask: (orgId, taskId, session) => {
+    if (session?.role === 'volunteer' || session?.role === 'student' || session?.role === 'member') {
+      throw new Error('Volunteers are not authorized to delete tasks.');
+    }
     const club = dbInstance.getClub(orgId);
     if (!club.tasks) club.tasks = [];
     const idx = club.tasks.findIndex(t => t.id === taskId);
