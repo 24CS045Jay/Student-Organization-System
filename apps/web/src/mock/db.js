@@ -320,10 +320,18 @@ class MockDatabase {
         const club = this.data.clubs[cloudTask.club_id];
         if (club) {
           const existingIdx = club.tasks.findIndex(t => t.id === cloudTask.id);
+          let evName = cloudTask.event_name;
+          if (!evName && cloudTask.event_id && club.events) {
+            const ev = club.events.find(e => e.id === cloudTask.event_id);
+            if (ev) evName = ev.title;
+          }
           const mappedTask = {
             id: cloudTask.id,
             title: cloudTask.title,
             owner: cloudTask.owner_name,
+            assignedTo: cloudTask.owner_name,
+            eventId: cloudTask.event_id || null,
+            eventName: evName || 'General Operations',
             deadline: cloudTask.deadline,
             priority: cloudTask.priority,
             status: cloudTask.status,
