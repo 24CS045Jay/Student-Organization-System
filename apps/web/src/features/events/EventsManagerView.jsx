@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Button, Badge, Drawer, Modal, ProgressBar } from '../../components/ui/index';
-import { clubService } from '../../services/clubService';https://github.githubassets.com/images/spinners/octocat-spinner-128.gif
-import { Calendar, Plus, Edit, Trash2, Users, DollarSign, TrendingUp, CheckCircle, Clock, Eye, Globe, XCircle, FileSpreadsheet, Printer, Download } from 'lucide-react';
+import { clubService } from '../../services/clubService';
+import { Calendar, Plus, Edit, Trash2, Users, DollarSign, TrendingUp, CheckCircle, CheckSquare, Clock, Eye, Globe, XCircle, FileSpreadsheet, Printer, Download } from 'lucide-react';
 
 export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, onNavigate }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -45,11 +45,13 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
     description: ''
   });
 
-  const club = clubService.getClub(activeClub.id);
-  const events = clubService.getEvents(activeClub.id);
-  const allTasks = clubService.getTasks(activeClub.id);
+  const clubId = activeClub?.id || session?.orgId || 'tech';
+  const club = (clubId ? clubService.getClub(clubId) : null) || {};
+  const events = (clubId ? clubService.getEvents(clubId) : []) || [];
+  const allTasks = (clubId ? clubService.getTasks(clubId) : []) || [];
   const volunteers = club.volunteers || [];
   const members = club.members || [];
+  const clubName = activeClub?.name || club?.name || 'Club Workspace';
 
   const filteredEvents = events.filter(ev => {
     const s = (ev.status || '').toLowerCase().trim();
@@ -66,7 +68,7 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
     if (!formData.title) return;
 
     try {
-      const created = clubService.createEvent(activeClub.id, formData, session);
+      const created = clubService.createEvent(clubId, formData, session);
       setIsCreateOpen(false);
       setFormData({
         title: '',
@@ -89,7 +91,7 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
 
   const handlePublishEvent = (ev) => {
     try {
-      clubService.publishEvent(activeClub.id, ev.id, session);
+      clubService.publishEvent(clubId, ev.id, session);
       if (onToast) onToast(`📢 "${ev.title}" is now Published! All students & members can see and register for this event!`);
       if (onDataChange) onDataChange();
     } catch (err) {
@@ -99,7 +101,7 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
 
   const handleUnpublishEvent = (ev) => {
     try {
-      clubService.updateEventStatus(activeClub.id, ev.id, 'Draft', session);
+      clubService.updateEventStatus(clubId, ev.id, 'Draft', session);
       if (onToast) onToast(`📝 "${ev.title}" set to Draft (Hidden from members).`);
       if (onDataChange) onDataChange();
     } catch (err) {
@@ -128,7 +130,7 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
     if (!editingEvent) return;
 
     try {
-      clubService.updateEvent(activeClub.id, editingEvent.id, editFormData, session);
+      clubService.updateEvent(clubId, editingEvent.id, editFormData, session);
       setEditingEvent(null);
       if (onToast) onToast(`✅ Event "${editFormData.title}" updated successfully!`);
       if (onDataChange) onDataChange();
@@ -140,7 +142,7 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
   const handleDeleteEvent = (ev) => {
     if (window.confirm(`Are you sure you want to delete event "${ev.title}"?`)) {
       try {
-        clubService.deleteEvent(activeClub.id, ev.id, session);
+        clubService.deleteEvent(clubId, ev.id, session);
         if (onToast) onToast(`🗑️ Event "${ev.title}" removed.`);
         if (onDataChange) onDataChange();
       } catch (err) {
@@ -159,7 +161,7 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
       const foundVol = volunteers.find(v => v.name === chosenVolunteer);
 
       clubService.createTask(
-        activeClub.id,
+        clubId,
         {
           title: assignTaskForm.title.trim(),
           owner: chosenVolunteer,
@@ -190,7 +192,7 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
 
   const handleUpdateTaskStatus = (taskId, newStatus, newProgress) => {
     try {
-      clubService.updateTaskStatus(activeClub.id, taskId, newStatus, newProgress, session);
+      clubService.updateTaskStatus(clubId, taskId, newStatus, newProgress, session);
       if (onToast) onToast(`📋 Task status updated to ${newStatus}`);
       if (onDataChange) onDataChange();
     } catch (err) {
@@ -201,7 +203,7 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
   const handleDeleteTask = (taskId, title) => {
     if (!window.confirm(`Delete task "${title}"?`)) return;
     try {
-      clubService.deleteTask(activeClub.id, taskId, session);
+      clubService.deleteTask(clubId, taskId, session);
       if (onToast) onToast(`🗑️ Task deleted: "${title}"`);
       if (onDataChange) onDataChange();
     } catch (err) {
@@ -217,7 +219,7 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
             Events Management & Volunteer Logistics
           </h1>
           <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)' }}>
-            Schedule events, assign tasks to chosen volunteers, control ticketing, and track real-time logistics readiness for {activeClub.name}.
+            Schedule events, assign tasks to chosen volunteers, control ticketing, and track real-time logistics readiness for {clubName}.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -678,7 +680,7 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
           const handleExportCsv = () => {
             const rows = [
               ['ClubSphere Executive Event P&L Statement'],
-              ['Organization', activeClub.name],
+              ['Organization', clubName],
               ['Event Title', selectedEventForProfit.title],
               ['Date & Time', `${selectedEventForProfit.date} ${selectedEventForProfit.time}`],
               ['Location', selectedEventForProfit.location],

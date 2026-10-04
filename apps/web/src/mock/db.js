@@ -353,13 +353,43 @@ class MockDatabase {
   }
 
   getClub(orgId) {
-    if (!orgId) throw new Error('Club ID required');
-    if (!this.data.clubs[orgId]) {
+    const key = orgId || 'tech';
+    if (!this.data.clubs) this.data.clubs = {};
+    if (!this.data.clubs[key]) {
       const first = Object.keys(this.data.clubs)[0];
-      if (first) return this.data.clubs[first];
-      throw new Error(`Club "${orgId}" not found. Please create this club first in the Super Admin portal.`);
+      if (first && this.data.clubs[first]) return this.data.clubs[first];
+
+      // Construct a safe default club structure so React never crashes on blank screen
+      this.data.clubs[key] = {
+        id: key,
+        name: key === 'platform' ? 'Platform Super Admin' : `${key.toUpperCase()} Club Workspace`,
+        short: key,
+        prefix: key.substring(0, 3).toUpperCase(),
+        category: 'Technical',
+        color: '#FFE853',
+        accentColor: '#FFE853',
+        emailDomain: `@${key}.campus.edu`,
+        members: [],
+        events: [],
+        merchandise: [],
+        tasks: [],
+        orders: [],
+        tickets: [],
+        fundraisers: [],
+        sponsors: [],
+        donations: [],
+        certificates: [],
+        feedback: [],
+        volunteers: [],
+        reimbursements: [],
+        announcements: [],
+        purchaseOrders: [],
+        membershipTypes: [],
+        finance: { totalIncome: 0, totalExpenses: 0, netBalance: 0, incomeSources: [], expensesList: [] },
+        stats: { membersCount: 0 }
+      };
     }
-    const club = this.data.clubs[orgId];
+    const club = this.data.clubs[key];
     // Safeguard all relational collections against undefined
     if (!club.volunteers) club.volunteers = [];
     if (!club.reimbursements) club.reimbursements = [];
