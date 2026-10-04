@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Button, Badge, Drawer, Modal, ProgressBar } from '../../components/ui/index';
 import { clubService } from '../../services/clubService';
-import { Calendar, Plus, Edit, Trash2, Users, DollarSign, TrendingUp, CheckCircle, Clock, Eye, Globe, XCircle, FileSpreadsheet, Printer, Download } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Users, DollarSign, TrendingUp, CheckCircle, CheckSquare, Clock, Eye, Globe, XCircle, FileSpreadsheet, Printer, Download } from 'lucide-react';
 
 export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, onNavigate }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -45,11 +45,11 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
     description: ''
   });
 
-  const club = clubService.getClub(activeClub.id);
-  const events = clubService.getEvents(activeClub.id);
-  const allTasks = clubService.getTasks(activeClub.id);
-  const volunteers = club.volunteers || [];
-  const members = club.members || [];
+  const club = (activeClub?.id ? clubService.getClub(activeClub.id) : null) || {};
+  const events = (activeClub?.id ? clubService.getEvents(activeClub.id) : []) || [];
+  const allTasks = (activeClub?.id ? clubService.getTasks(activeClub.id) : []) || [];
+  const volunteers = club?.volunteers || [];
+  const members = club?.members || [];
 
   const filteredEvents = events.filter(ev => {
     const s = (ev.status || '').toLowerCase().trim();
