@@ -303,26 +303,56 @@ export const supabaseSync = {
   fetchCloudDatabase: async () => {
     if (!supabase) return null;
     try {
-      const [clubsRes, usersRes, eventsRes, tasksRes, volsRes, reimbsRes] = await Promise.all([
+      const [clubsRes, usersRes, eventsRes, tasksRes, membersRes, ticketsRes, volsRes, reimbsRes, prodsRes, ledgerRes] = await Promise.allSettled([
         supabase.from('clubs').select('*'),
         supabase.from('users').select('*'),
         supabase.from('events').select('*'),
         supabase.from('tasks').select('*'),
+        supabase.from('members').select('*'),
+        supabase.from('tickets').select('*'),
         supabase.from('volunteers').select('*'),
-        supabase.from('reimbursements').select('*')
+        supabase.from('reimbursements').select('*'),
+        supabase.from('products').select('*'),
+        supabase.from('financial_ledger').select('*')
       ]);
 
       return {
-        clubs: clubsRes.data || [],
-        users: usersRes.data || [],
-        events: eventsRes.data || [],
-        tasks: tasksRes.data || [],
-        volunteers: volsRes?.data || [],
-        reimbursements: reimbsRes?.data || []
+        clubs: clubsRes.status === 'fulfilled' ? clubsRes.value.data || [] : [],
+        users: usersRes.status === 'fulfilled' ? usersRes.value.data || [] : [],
+        events: eventsRes.status === 'fulfilled' ? eventsRes.value.data || [] : [],
+        tasks: tasksRes.status === 'fulfilled' ? tasksRes.value.data || [] : [],
+        members: membersRes.status === 'fulfilled' ? membersRes.value.data || [] : [],
+        tickets: ticketsRes.status === 'fulfilled' ? ticketsRes.value.data || [] : [],
+        volunteers: volsRes.status === 'fulfilled' ? volsRes.value.data || [] : [],
+        reimbursements: reimbsRes.status === 'fulfilled' ? reimbsRes.value.data || [] : [],
+        products: prodsRes.status === 'fulfilled' ? prodsRes.value.data || [] : [],
+        financialLedger: ledgerRes.status === 'fulfilled' ? ledgerRes.value.data || [] : []
       };
     } catch (err) {
       console.warn('[Supabase Sync] Cloud fetch note:', err.message);
       return null;
     }
+  },
+
+  // --- 12. REAL-TIME SUBSCRIPTION ---
+  subscribeToLiveChanges: (onUpdate) => {
+    if (!supabase) return () => {};
+    try {
+      const channel = supabase
+        .channel('clubsphere-live-sync')
+        .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
+          console.info('[Supabase Realtime] Change detected:', payload.table, payload.eventType);
+          if (onUpdate) onUpdate(payload);
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } catch (err) {
+      console.warn('[Supabase Realtime] Subscription error:', err.message);
+      return () => {};
+    }
   }
 };
+

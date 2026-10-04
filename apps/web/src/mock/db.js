@@ -348,6 +348,151 @@ class MockDatabase {
       modified = true;
     }
 
+    // 5. Hydrate Members
+    if (cloudData.members && cloudData.members.length > 0) {
+      cloudData.members.forEach(cloudMember => {
+        const club = this.data.clubs[cloudMember.club_id];
+        if (club) {
+          const existingIdx = (club.members || []).findIndex(m => m.id === cloudMember.id);
+          const mappedMember = {
+            id: cloudMember.id,
+            name: cloudMember.name,
+            email: cloudMember.email,
+            personalEmail: cloudMember.personal_email || '',
+            studentId: cloudMember.student_id || '',
+            dept: cloudMember.department || 'Computer Engineering',
+            type: cloudMember.membership_type || 'Standard Member',
+            startDate: cloudMember.start_date || new Date().toISOString().split('T')[0],
+            exp: cloudMember.expiry_date || new Date().toISOString().split('T')[0],
+            paid: cloudMember.is_paid ? 1 : 0,
+            status: cloudMember.status || 'Active',
+            photo: '🧑‍🎓',
+            attendanceCount: 0
+          };
+          if (existingIdx >= 0) {
+            club.members[existingIdx] = { ...club.members[existingIdx], ...mappedMember };
+          } else {
+            club.members.unshift(mappedMember);
+          }
+          club.stats.membersCount = club.members.length;
+        }
+      });
+      modified = true;
+    }
+
+    // 6. Hydrate Tickets
+    if (cloudData.tickets && cloudData.tickets.length > 0) {
+      cloudData.tickets.forEach(cloudTicket => {
+        const club = this.data.clubs[cloudTicket.club_id];
+        if (club) {
+          const existingIdx = (club.tickets || []).findIndex(t => t.id === cloudTicket.id);
+          const mappedTicket = {
+            id: cloudTicket.id,
+            eventId: cloudTicket.event_id,
+            attendeeName: cloudTicket.attendee_name,
+            email: cloudTicket.attendee_email,
+            isMember: Boolean(cloudTicket.is_member),
+            pricePaid: cloudTicket.price_paid,
+            status: cloudTicket.status,
+            seat: cloudTicket.seat_identifier || '',
+            qrToken: cloudTicket.qr_token || cloudTicket.id,
+            paymentId: cloudTicket.payment_id || ''
+          };
+          if (existingIdx >= 0) {
+            club.tickets[existingIdx] = { ...club.tickets[existingIdx], ...mappedTicket };
+          } else {
+            club.tickets.unshift(mappedTicket);
+          }
+        }
+      });
+      modified = true;
+    }
+
+    // 7. Hydrate Volunteers
+    if (cloudData.volunteers && cloudData.volunteers.length > 0) {
+      cloudData.volunteers.forEach(cloudVol => {
+        const club = this.data.clubs[cloudVol.club_id];
+        if (club) {
+          const existingIdx = (club.volunteers || []).findIndex(v => v.id === cloudVol.id);
+          const mappedVol = {
+            id: cloudVol.id,
+            name: cloudVol.name,
+            email: cloudVol.email,
+            phone: cloudVol.phone,
+            roleTitle: cloudVol.role_title,
+            hours: cloudVol.service_hours,
+            badge: cloudVol.badge_tier,
+            rating: cloudVol.rating,
+            skills: cloudVol.skills || []
+          };
+          if (existingIdx >= 0) {
+            club.volunteers[existingIdx] = { ...club.volunteers[existingIdx], ...mappedVol };
+          } else {
+            club.volunteers.unshift(mappedVol);
+          }
+        }
+      });
+      modified = true;
+    }
+
+    // 8. Hydrate Reimbursements
+    if (cloudData.reimbursements && cloudData.reimbursements.length > 0) {
+      cloudData.reimbursements.forEach(cloudReimb => {
+        const club = this.data.clubs[cloudReimb.club_id];
+        if (club) {
+          const existingIdx = (club.reimbursements || []).findIndex(r => r.id === cloudReimb.id);
+          const mappedReimb = {
+            id: cloudReimb.id,
+            volunteerName: cloudReimb.volunteer_name,
+            volunteerEmail: cloudReimb.volunteer_email,
+            category: cloudReimb.category,
+            event: cloudReimb.event_title,
+            amount: cloudReimb.amount,
+            date: cloudReimb.claim_date,
+            description: cloudReimb.description,
+            receiptUrl: cloudReimb.receipt_url,
+            status: cloudReimb.status,
+            approver: cloudReimb.approved_by
+          };
+          if (existingIdx >= 0) {
+            club.reimbursements[existingIdx] = { ...club.reimbursements[existingIdx], ...mappedReimb };
+          } else {
+            club.reimbursements.unshift(mappedReimb);
+          }
+        }
+      });
+      modified = true;
+    }
+
+    // 9. Hydrate Products / Merchandise
+    if (cloudData.products && cloudData.products.length > 0) {
+      cloudData.products.forEach(cloudProd => {
+        const club = this.data.clubs[cloudProd.club_id];
+        if (club) {
+          const existingIdx = (club.merchandise || []).findIndex(m => m.id === cloudProd.id);
+          const mappedProd = {
+            id: cloudProd.id,
+            name: cloudProd.name,
+            description: cloudProd.description,
+            category: cloudProd.category,
+            image: cloudProd.image || '👕',
+            memberPrice: cloudProd.member_price,
+            nonMemberPrice: cloudProd.non_member_price,
+            cost: cloudProd.cost,
+            stock: cloudProd.stock || {},
+            totalSold: cloudProd.total_sold || 0,
+            status: cloudProd.status
+          };
+          if (existingIdx >= 0) {
+            club.merchandise[existingIdx] = { ...club.merchandise[existingIdx], ...mappedProd };
+          } else {
+            club.merchandise.unshift(mappedProd);
+          }
+        }
+      });
+      modified = true;
+    }
+
     if (modified) this.save();
     return modified;
   }

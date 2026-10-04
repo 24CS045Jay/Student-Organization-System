@@ -6,6 +6,14 @@
 const RESEND_API_KEY = import.meta.env.VITE_RESEND_API_KEY || import.meta.env.RESEND_API_KEY || '';
 const FROM_EMAIL = import.meta.env.VITE_RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
+const getApiBase = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return '/api/v1';
+  }
+  return 'http://localhost:3000/api/v1';
+};
+
 /**
  * Dispatches an email via backend Resend API to deliver real emails to user inbox (no popups)
  */
@@ -17,8 +25,10 @@ export const sendEmail = async ({ to, subject, html, text }) => {
     text: text || subject
   };
 
+  // 1. Try sending via backend API (/api/v1/email/send)
   try {
-    const res = await fetch('http://localhost:3000/api/v1/email/send', {
+    const apiBase = getApiBase();
+    const res = await fetch(`${apiBase}/email/send`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -26,19 +36,44 @@ export const sendEmail = async ({ to, subject, html, text }) => {
       body: JSON.stringify(payload)
     });
 
-    const data = await res.json();
-    if (!res.ok) {
-      console.warn('[Email Service] Email delivery response:', data);
-      return { success: false, error: data.error };
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.info('[Email Service] Real email dispatched successfully to:', to, data);
+      return { success: true, mode: 'sent_to_inbox', id: data.id };
     }
-
-    console.info('[Email Service] Real email dispatched successfully to:', to, data);
-    return { success: true, mode: 'sent_to_inbox', id: data.id };
   } catch (error) {
-    console.error('[Email Service] Network/API error delivering email:', error);
-    return { success: false, error: error.message };
+    console.warn('[Email Service] Primary endpoint unreachable, checking client fallback...', error.message);
   }
+
+  // 2. Direct Resend API Client Fallback if API key is provided directly in client env
+  if (RESEND_API_KEY && RESEND_API_KEY !== 'your_key_here') {
+    try {
+      const directRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: FROM_EMAIL.includes('<') ? FROM_EMAIL : `ClubSphere <${FROM_EMAIL}>`,
+          to: payload.to,
+          subject: payload.subject,
+          html: payload.html
+        })
+      });
+      const directData = await directRes.json().catch(() => ({}));
+      if (directRes.ok) {
+        console.info('[Email Service] Direct Resend dispatched to:', to, directData);
+        return { success: true, mode: 'sent_direct_resend', id: directData.id };
+      }
+    } catch (e) {
+      console.warn('[Email Service] Direct Resend attempt failed:', e.message);
+    }
+  }
+
+  return { success: false, error: 'Email service unavailable or API key not configured' };
 };
+
 
 
 /**

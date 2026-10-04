@@ -83,7 +83,7 @@ class ErrorBoundary extends React.Component {
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button
                 onClick={() => {
-                  try { localStorage.removeItem('clubsphere_session'); } catch (_) {}
+                  try { localStorage.removeItem('clubsphere_session'); } catch (_) { }
                   window.location.reload();
                 }}
                 className="neo-btn neo-btn-yellow"
@@ -129,7 +129,7 @@ function MainApp() {
       const p = new URLSearchParams(window.location.search);
       const v = p.get('verify') || p.get('ticket') || p.get('pass');
       if (v) return clubService.lookupPublicPass(v);
-    } catch (e) {}
+    } catch (e) { }
     return null;
   });
 
@@ -143,7 +143,7 @@ function MainApp() {
           return parsed;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
     return null;
   });
 
@@ -157,7 +157,7 @@ function MainApp() {
           return 'app';
         }
       }
-    } catch (e) {}
+    } catch (e) { }
     return 'landing';
   });
 
@@ -184,7 +184,7 @@ function MainApp() {
         }
         return defaultTab;
       }
-    } catch (e) {}
+    } catch (e) { }
     return 'club-dash';
   });
   const [isAICopilotDrawerOpen, setIsAICopilotDrawerOpen] = useState(false);
@@ -195,17 +195,27 @@ function MainApp() {
   const [dataVersion, setDataVersion] = useState(0);
   const [notifsList, setNotifsList] = useState([]);
 
-  // Cloud Supabase initial hydration
+  // Cloud Supabase initial hydration & real-time sync
   useEffect(() => {
-    supabaseSync.fetchCloudDatabase().then((cloudData) => {
-      if (cloudData && cloudData.clubs && cloudData.clubs.length > 0) {
-        console.info('[Supabase Live Database] Active cloud records detected.');
-        if (window.dbInstance) {
+    const hydrate = () => {
+      supabaseSync.fetchCloudDatabase().then((cloudData) => {
+        if (cloudData && window.dbInstance) {
           const modified = window.dbInstance.hydrateFromCloud(cloudData);
           if (modified) setDataVersion(v => v + 1);
         }
-      }
-    }).catch(console.warn);
+      }).catch(console.warn);
+    };
+
+    hydrate();
+
+    // Realtime channel updates from Supabase
+    const unsubscribe = supabaseSync.subscribeToLiveChanges(() => {
+      hydrate();
+    });
+
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
   }, []);
 
   // Subscribe to notifications when logged in
@@ -248,7 +258,7 @@ function MainApp() {
       } else {
         localStorage.removeItem('clubsphere_session');
       }
-    } catch (e) {}
+    } catch (e) { }
   }, [session]);
 
   useEffect(() => {
@@ -256,7 +266,7 @@ function MainApp() {
       if (activeTab) {
         localStorage.setItem('clubsphere_active_tab', activeTab);
       }
-    } catch (e) {}
+    } catch (e) { }
   }, [activeTab]);
 
   const handleToast = (msg) => {
@@ -605,7 +615,7 @@ function MainApp() {
             setPublicVerifiedPass(null);
             try {
               window.history.replaceState({}, '', window.location.pathname);
-            } catch (e) {}
+            } catch (e) { }
           }}
           title="⚡ Verified Digital Pass"
           headerColor="var(--accent-green)"
@@ -674,7 +684,7 @@ function MainApp() {
                 setPublicVerifiedPass(null);
                 try {
                   window.history.replaceState({}, '', window.location.pathname);
-                } catch (e) {}
+                } catch (e) { }
               }}
             >
               Continue to ClubSphere
