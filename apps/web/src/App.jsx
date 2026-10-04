@@ -56,7 +56,73 @@ import { clubService } from './services/clubService';
 import { dbInstance } from './mock/db';
 import { Drawer, Modal, Badge, Button } from './components/ui/index';
 
-export default function App() {
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.warn('[ClubSphere ErrorBoundary caught error]:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backgroundColor: '#FAF5EE' }}>
+          <div className="neo-box" style={{ maxWidth: '520px', padding: '32px', textAlign: 'center', backgroundColor: '#FFFFFF', border: '3px solid #121212', borderRadius: '20px', boxShadow: '6px 6px 0px #121212' }}>
+            <div style={{ fontSize: '48px', marginBottom: '12px' }}>⚡</div>
+            <h2 style={{ fontSize: '22px', fontWeight: 900, marginBottom: '8px' }}>ClubSphere Workspace Recovery</h2>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)', marginBottom: '20px' }}>
+              {this.state.error?.message || 'A temporary state synchronization error occurred.'}
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => {
+                  try { localStorage.removeItem('clubsphere_session'); } catch (_) {}
+                  window.location.reload();
+                }}
+                className="neo-btn neo-btn-yellow"
+                style={{ padding: '10px 18px', fontSize: '13px' }}
+              >
+                🔄 Reset Session & Reload
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="neo-btn neo-btn-white"
+                style={{ padding: '10px 18px', fontSize: '13px' }}
+              >
+                Reload Page
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const ROLE_ALLOWED_TABS = {
+  student: ['my-membership', 'browse-events', 'my-tickets', 'merch-shop', 'my-orders', 'my-certificates', 'announcements-feed', 'feedback'],
+  member: ['my-membership', 'browse-events', 'my-tickets', 'merch-shop', 'my-orders', 'my-certificates', 'announcements-feed', 'feedback'],
+  volunteer: ['tasks-kanban', 'volunteer-portal', 'my-reimbursements', 'leaderboard', 'announcements-feed'],
+  event_manager: ['events-list', 'tasks-kanban', 'volunteers-list', 'qr-checkin', 'attendance', 'event-profit', 'reports-hub', 'feedback', 'announcements-mgmt'],
+  treasurer: ['financial-dash', 'income-ledger', 'expenses-ledger', 'reimbursements-mgmt', 'budget-mgmt', 'sponsors', 'donations', 'reports-hub'],
+  admin: [
+    'club-dash', 'members-list', 'member-verify', 'events-list', 'inventory', 'fundraisers',
+    'volunteers-list', 'financial-dash', 'reports-hub', 'announcements-mgmt', 'sponsors',
+    'certificates-mgmt', 'ai-copilot', 'audit-log', 'settings', 'qr-checkin', 'attendance',
+    'reimbursements-mgmt'
+  ],
+  super_admin: ['saas-orgs', 'saas-plans', 'saas-analytics', 'saas-modules', 'audit-log', 'settings']
+};
+
+function MainApp() {
   // Public Pass Verification State (triggered if URL contains ?verify=...)
   const [publicVerifiedPass, setPublicVerifiedPass] = useState(() => {
     try {
@@ -73,11 +139,9 @@ export default function App() {
       const saved = localStorage.getItem('clubsphere_session');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed?.orgId === 'tech' || parsed?.orgId === 'cult' || parsed?.orgId === 'sport') {
-          localStorage.removeItem('clubsphere_session');
-          return null;
+        if (parsed && parsed.role) {
+          return parsed;
         }
-        return parsed;
       }
     } catch (e) {}
     return null;
@@ -89,7 +153,7 @@ export default function App() {
       const saved = localStorage.getItem('clubsphere_session');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed?.orgId !== 'tech' && parsed?.orgId !== 'cult' && parsed?.orgId !== 'sport') {
+        if (parsed && parsed.role) {
           return 'app';
         }
       }
@@ -100,18 +164,25 @@ export default function App() {
   const [authInitialMode, setAuthInitialMode] = useState('login');
   const [activeTab, setActiveTab] = useState(() => {
     try {
+      const savedTab = localStorage.getItem('clubsphere_active_tab');
       const saved = localStorage.getItem('clubsphere_session');
       if (saved) {
         const parsed = JSON.parse(saved);
         const homeTabMap = {
           student: 'my-membership',
+          member: 'my-membership',
           volunteer: 'tasks-kanban',
           event_manager: 'events-list',
           treasurer: 'financial-dash',
           admin: 'club-dash',
           super_admin: 'saas-orgs'
         };
-        return homeTabMap[parsed.role] || 'club-dash';
+        const defaultTab = homeTabMap[parsed?.role] || 'club-dash';
+        const allowed = ROLE_ALLOWED_TABS[parsed?.role] || [];
+        if (savedTab && (allowed.length === 0 || allowed.includes(savedTab))) {
+          return savedTab;
+        }
+        return defaultTab;
       }
     } catch (e) {}
     return 'club-dash';
@@ -169,7 +240,7 @@ export default function App() {
     return { id: 'club', name: 'Student Club', short: 'Club', color: '#FFE853' };
   })();
 
-  // Save session changes
+  // Save session and activeTab changes
   useEffect(() => {
     try {
       if (session) {
@@ -179,6 +250,14 @@ export default function App() {
       }
     } catch (e) {}
   }, [session]);
+
+  useEffect(() => {
+    try {
+      if (activeTab) {
+        localStorage.setItem('clubsphere_active_tab', activeTab);
+      }
+    } catch (e) {}
+  }, [activeTab]);
 
   const handleToast = (msg) => {
     setToastMessage(msg);
@@ -293,20 +372,7 @@ export default function App() {
   }
 
   // Role Permissions Mapping for RoleGuard
-  const roleAllowedTabs = {
-    student: ['my-membership', 'browse-events', 'my-tickets', 'merch-shop', 'my-orders', 'my-certificates', 'announcements-feed', 'feedback'],
-    member: ['my-membership', 'browse-events', 'my-tickets', 'merch-shop', 'my-orders', 'my-certificates', 'announcements-feed', 'feedback'],
-    volunteer: ['tasks-kanban', 'volunteer-portal', 'my-reimbursements', 'leaderboard', 'announcements-feed'],
-    event_manager: ['events-list', 'tasks-kanban', 'volunteers-list', 'qr-checkin', 'attendance', 'event-profit', 'reports-hub', 'feedback', 'announcements-mgmt'],
-    treasurer: ['financial-dash', 'income-ledger', 'expenses-ledger', 'reimbursements-mgmt', 'budget-mgmt', 'sponsors', 'donations', 'reports-hub'],
-    admin: [
-      'club-dash', 'members-list', 'member-verify', 'events-list', 'inventory', 'fundraisers',
-      'volunteers-list', 'financial-dash', 'reports-hub', 'announcements-mgmt', 'sponsors',
-      'certificates-mgmt', 'ai-copilot', 'audit-log', 'settings', 'qr-checkin', 'attendance',
-      'reimbursements-mgmt'
-    ],
-    super_admin: ['saas-orgs', 'saas-plans', 'saas-analytics', 'saas-modules', 'audit-log', 'settings']
-  };
+  const roleAllowedTabs = ROLE_ALLOWED_TABS;
 
   const isTabAllowed = (roleAllowedTabs[session.role] || []).includes(activeTab);
 
@@ -348,7 +414,7 @@ export default function App() {
         return <BrowseEventsView key={`browse-events-${dataVersion}`} session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} onNavigate={setActiveTab} />;
       case 'events-list':
       case 'event-profit':
-        return <EventsManagerView session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} onNavigate={setActiveTab} />;
+        return <EventsManagerView key={`events-mgr-${activeClub?.id || session?.orgId}-${dataVersion}`} session={session} activeClub={activeClub} onDataChange={handleDataChange} onToast={handleToast} onNavigate={setActiveTab} />;
       case 'my-tickets':
         return <MyTicketsView session={session} activeClub={activeClub} onToast={handleToast} onNavigate={setActiveTab} />;
       case 'qr-checkin':
@@ -617,5 +683,13 @@ export default function App() {
         </Modal>
       )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <MainApp />
+    </ErrorBoundary>
   );
 }
