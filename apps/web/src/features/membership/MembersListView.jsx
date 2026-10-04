@@ -15,7 +15,8 @@ import {
   Phone,
   Calendar,
   Layers,
-  ChevronRight
+  ChevronRight,
+  Trash2
 } from 'lucide-react';
 
 export const MembersListView = ({ session, activeClub, onDataChange, onToast }) => {
@@ -223,10 +224,17 @@ export const MembersListView = ({ session, activeClub, onDataChange, onToast }) 
                 </tr>
               </thead>
               <tbody>
-                {filteredMembers.map((m) => {
-                  const isExp = new Date(m.exp) < new Date() || m.paid === 0;
-                  return (
-                    <tr key={m.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedMember(m)}>
+                {filteredMembers.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '40px 20px', fontWeight: 800, color: 'var(--ink-muted)' }}>
+                      No members match the search or filter criteria. Click "Register New Member" to onboard students to {activeClub.name}!
+                    </td>
+                  </tr>
+                ) : (
+                  filteredMembers.map((m) => {
+                    const isExp = new Date(m.exp) < new Date() || m.paid === 0;
+                    return (
+                      <tr key={m.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedMember(m)}>
                       <td style={{ fontFamily: 'monospace', fontWeight: 900 }}>
                         <span style={{ backgroundColor: '#FAF4E8', padding: '3px 8px', border: '1.5px solid #000', borderRadius: '6px' }}>
                           {m.id}
@@ -272,7 +280,7 @@ export const MembersListView = ({ session, activeClub, onDataChange, onToast }) 
                       </td>
                     </tr>
                   );
-                })}
+                }))}
               </tbody>
             </table>
           </div>
@@ -397,10 +405,30 @@ export const MembersListView = ({ session, activeClub, onDataChange, onToast }) 
               </div>
             </div>
 
-            {/* Renewal Button */}
-            <Button variant="yellow" style={{ width: '100%' }} onClick={() => handleRenewMember(selectedMember.id)}>
-              ⚡ Extend Membership (+12 Months)
-            </Button>
+            {/* Renewal & Delete Buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <Button variant="yellow" style={{ width: '100%' }} onClick={() => handleRenewMember(selectedMember.id)}>
+                ⚡ Extend Membership (+12 Months)
+              </Button>
+              <Button
+                variant="white"
+                style={{ width: '100%', color: '#DC2626', borderColor: '#DC2626' }}
+                onClick={() => {
+                  if (!window.confirm(`Delete member ${selectedMember.name} (${selectedMember.id}) from club roster?`)) return;
+                  try {
+                    clubService.deleteMember(activeClub.id, selectedMember.id, session);
+                    setSelectedMember(null);
+                    if (onToast) onToast(`🗑️ Removed member ${selectedMember.name}`);
+                    if (onDataChange) onDataChange();
+                  } catch (err) {
+                    alert(err.message);
+                  }
+                }}
+                icon={Trash2}
+              >
+                Remove Member from Roster
+              </Button>
+            </div>
 
             {/* History Timeline */}
             <div>

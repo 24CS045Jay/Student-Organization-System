@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Button, Badge, Drawer } from '../../components/ui/index';
 import { clubService } from '../../services/clubService';
-import { Megaphone, Plus, Mail, Globe, Bell, Send, Users, Sparkles } from 'lucide-react';
+import { Megaphone, Plus, Mail, Globe, Bell, Send, Users, Sparkles, Trash2 } from 'lucide-react';
 
 export const AnnouncementsView = ({ session, activeClub, onDataChange, onToast }) => {
   const canCompose = session?.role === 'admin' || session?.role === 'event_manager' || session?.role === 'manager' || session?.role === 'super_admin';
@@ -50,6 +50,17 @@ export const AnnouncementsView = ({ session, activeClub, onDataChange, onToast }
       ...composeForm,
       channels: exists ? composeForm.channels.filter(c => c !== ch) : [...composeForm.channels, ch]
     });
+  };
+
+  const handleDeleteAnnouncement = (ann) => {
+    if (!window.confirm(`Delete announcement "${ann.title}"?`)) return;
+    try {
+      clubService.deleteAnnouncement(activeClub.id, ann.id, session);
+      if (onToast) onToast(`🗑️ Deleted announcement "${ann.title}"`);
+      if (onDataChange) onDataChange();
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   return (
@@ -118,30 +129,48 @@ export const AnnouncementsView = ({ session, activeClub, onDataChange, onToast }
                     <th>Date</th>
                     <th>Reach Count</th>
                     <th>Status</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {announcements.map((ann) => (
-                    <tr key={ann.id}>
-                      <td>
-                        <div style={{ fontWeight: 900 }}>{ann.title}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>{ann.content}</div>
+                  {announcements.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '36px 20px', fontWeight: 800, color: 'var(--ink-muted)' }}>
+                        No announcements broadcasted yet. Click "Compose Broadcast" above to send your first message!
                       </td>
-                      <td><Badge variant="blue">{ann.audience}</Badge></td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                          {ann.channels.map(c => (
-                            <span key={c} style={{ fontSize: '10px', fontWeight: 900, backgroundColor: '#FAF5EE', padding: '2px 6px', border: '1px solid #000', borderRadius: '4px' }}>
-                              {c}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td>{ann.date}</td>
-                      <td style={{ fontWeight: 900 }}>{ann.reach} members</td>
-                      <td><Badge variant="green">{ann.status}</Badge></td>
                     </tr>
-                  ))}
+                  ) : (
+                    announcements.map((ann) => (
+                      <tr key={ann.id}>
+                        <td>
+                          <div style={{ fontWeight: 900 }}>{ann.title}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>{ann.content}</div>
+                        </td>
+                        <td><Badge variant="blue">{ann.audience}</Badge></td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            {ann.channels.map(c => (
+                              <span key={c} style={{ fontSize: '10px', fontWeight: 900, backgroundColor: '#FAF5EE', padding: '2px 6px', border: '1px solid #000', borderRadius: '4px' }}>
+                                {c}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td>{ann.date}</td>
+                        <td style={{ fontWeight: 900 }}>{ann.reach} members</td>
+                        <td><Badge variant="green">{ann.status}</Badge></td>
+                        <td>
+                          <Button
+                            variant="white"
+                            size="sm"
+                            onClick={() => handleDeleteAnnouncement(ann)}
+                            icon={Trash2}
+                            title="Delete Announcement"
+                          />
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -152,22 +181,78 @@ export const AnnouncementsView = ({ session, activeClub, onDataChange, onToast }
       {/* Feed View */}
       {activeView === 'feed' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {announcements.map((ann) => (
-            <Card
-              key={ann.id}
-              title={ann.title}
-              headerBg="var(--accent-yellow)"
-              headerAction={<Badge variant="purple">{ann.audience}</Badge>}
-            >
-              <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ink)', marginBottom: '14px', lineHeight: 1.6 }}>
-                {ann.content}
-              </p>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--ink-muted)', fontWeight: 800 }}>
-                <span>Author: {ann.author}</span>
-                <span>Published on {ann.date}</span>
+          {announcements.length === 0 ? (
+            <Card title="No Announcements" headerBg="var(--accent-yellow)">
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '44px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '44px',
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '20px',
+                    backgroundColor: '#FEF9C3',
+                    border: '3px solid #000',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '4px 4px 0px #000'
+                  }}
+                >
+                  📢
+                </div>
+                <h3 style={{ fontSize: '18px', fontWeight: 900, margin: '4px 0' }}>
+                  No Broadcasts Yet
+                </h3>
+                <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)', maxWidth: '420px' }}>
+                  Club executive announcements, event updates, and news will appear here dynamically.
+                </p>
+                {canCompose && (
+                  <Button variant="pink" onClick={() => setIsComposeOpen(true)} icon={Plus}>
+                    Compose First Broadcast
+                  </Button>
+                )}
               </div>
             </Card>
-          ))}
+          ) : (
+            announcements.map((ann) => (
+              <Card
+                key={ann.id}
+                title={ann.title}
+                headerBg="var(--accent-yellow)"
+                headerAction={
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <Badge variant="purple">{ann.audience}</Badge>
+                    {canCompose && (
+                      <Button
+                        variant="white"
+                        size="sm"
+                        onClick={() => handleDeleteAnnouncement(ann)}
+                        icon={Trash2}
+                        title="Delete Announcement"
+                      />
+                    )}
+                  </div>
+                }
+              >
+                <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ink)', marginBottom: '14px', lineHeight: 1.6 }}>
+                  {ann.content}
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--ink-muted)', fontWeight: 800 }}>
+                  <span>Author: {ann.author}</span>
+                  <span>Published on {ann.date}</span>
+                </div>
+              </Card>
+            ))
+          )}
         </div>
       )}
 

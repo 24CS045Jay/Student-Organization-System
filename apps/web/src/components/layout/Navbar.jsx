@@ -18,6 +18,7 @@ export const Navbar = ({
   onToggleAICopilot,
   unreadNotifsCount = 0,
   onOpenNotifs,
+  onOpenQuickLogin,
   onLogout
 }) => {
   const roleLabels = {
@@ -173,6 +174,19 @@ export const Navbar = ({
             </span>
           )}
         </button>
+
+        {/* Switch Role Button */}
+        {onOpenQuickLogin && (
+          <button
+            onClick={onOpenQuickLogin}
+            className="neo-btn neo-btn-sm neo-btn-yellow"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
+            title="Switch User Role or Persona"
+          >
+            <UserCheck size={14} />
+            <span>Switch Role</span>
+          </button>
+        )}
 
         {/* User Persona & Role Badge */}
         <div

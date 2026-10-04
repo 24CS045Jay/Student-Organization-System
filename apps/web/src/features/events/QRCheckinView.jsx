@@ -77,6 +77,7 @@ export const QRCheckinView = ({ session, activeClub, onToast }) => {
   const streamRef = useRef(null);
   const scanningLockRef = useRef(false);
   const fileInputRef = useRef(null);
+  const barcodeDetectorRef = useRef(null);
 
   const steps = ['Scan Code', 'Validate Tenant', 'Duplicate Guard', 'Mark Attended'];
 
@@ -124,32 +125,83 @@ export const QRCheckinView = ({ session, activeClub, onToast }) => {
     };
   }, [useLiveCamera]);
 
-  // Live video frame barcode detection using universal jsQR
+  // Live video frame barcode detection with high precision & multi-resolution
   useEffect(() => {
     let animId = null;
     let isCancelled = false;
+    let lastScanTime = 0;
     const canvas = document.createElement('canvas');
+    const cropCanvas = document.createElement('canvas');
 
-    const scanFrame = () => {
+    const scanFrame = async () => {
       if (isCancelled) return;
 
       const video = videoRef.current;
-      if (video && video.readyState >= 2 && !scanningLockRef.current) {
+      const now = performance.now();
+
+      // Scan every ~90ms to keep video at silky 60fps and low CPU
+      if (video && video.readyState >= 2 && !scanningLockRef.current && (now - lastScanTime >= 90)) {
+        lastScanTime = now;
         try {
           if (video.videoWidth > 0 && video.videoHeight > 0) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            if (ctx) {
-              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-              const decoded = decodeInAppQR(imageData);
-              if (decoded && decoded.code) {
-                scanningLockRef.current = true;
-                handleProcessScan(decoded.code);
-                setTimeout(() => {
-                  scanningLockRef.current = false;
-                }, 2500); // 2.5s cooldown
+            let foundCode = null;
+
+            // Technique 1: Hardware BarcodeDetector (Chrome / Edge / Android)
+            if ('BarcodeDetector' in window) {
+              try {
+                if (!barcodeDetectorRef.current) {
+                  barcodeDetectorRef.current = new window.BarcodeDetector({ formats: ['qr_code'] });
+                }
+                const barcodes = await barcodeDetectorRef.current.detect(video);
+                if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                  foundCode = barcodes[0].rawValue;
+                }
+              } catch (e) {
+                // fall back to jsQR
               }
+            }
+
+            // Technique 2: Center Viewfinder crop using jsQR (focus sweet spot where pink laser scans)
+            if (!foundCode) {
+              const minDim = Math.min(video.videoWidth, video.videoHeight);
+              const cropDim = Math.floor(minDim * 0.70);
+              const cropX = Math.floor((video.videoWidth - cropDim) / 2);
+              const cropY = Math.floor((video.videoHeight - cropDim) / 2);
+              cropCanvas.width = 380;
+              cropCanvas.height = 380;
+              const cropCtx = cropCanvas.getContext('2d', { willReadFrequently: true });
+              if (cropCtx) {
+                cropCtx.drawImage(video, cropX, cropY, cropDim, cropDim, 0, 0, 380, 380);
+                const cropData = cropCtx.getImageData(0, 0, 380, 380);
+                const decoded = decodeInAppQR(cropData);
+                if (decoded && decoded.code) {
+                  foundCode = decoded.code;
+                }
+              }
+            }
+
+            // Technique 3: Scaled full frame with jsQR (if pass is held off-center)
+            if (!foundCode) {
+              const scale = Math.min(1, 600 / Math.max(video.videoWidth, video.videoHeight));
+              canvas.width = Math.floor(video.videoWidth * scale);
+              canvas.height = Math.floor(video.videoHeight * scale);
+              const ctx = canvas.getContext('2d', { willReadFrequently: true });
+              if (ctx) {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const fullData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const decoded = decodeInAppQR(fullData);
+                if (decoded && decoded.code) {
+                  foundCode = decoded.code;
+                }
+              }
+            }
+
+            if (foundCode && !scanningLockRef.current) {
+              scanningLockRef.current = true;
+              handleProcessScan(foundCode);
+              setTimeout(() => {
+                scanningLockRef.current = false;
+              }, 2500); // 2.5s cooldown before next check-in
             }
           }
         } catch (err) {
@@ -173,8 +225,27 @@ export const QRCheckinView = ({ session, activeClub, onToast }) => {
   }, [useLiveCamera, selectedEventId]);
 
   const handleProcessScan = (code) => {
-    const target = (code || ticketQuery).trim();
+    let target = (code || ticketQuery).trim();
     if (!target || isProcessing) return;
+
+    // If payload is a URL (e.g. https://clubsphere-campus-os.vercel.app/?verify=TKT-TC-9801)
+    if (target.includes('?') && (target.startsWith('http://') || target.startsWith('https://'))) {
+      try {
+        const u = new URL(target);
+        const p = u.searchParams.get('verify') || u.searchParams.get('ticket') || u.searchParams.get('code') || u.searchParams.get('id');
+        if (p) target = p.trim();
+      } catch (e) {
+        const m = target.match(/[?&](?:verify|ticket|code|id)=([^&#]+)/i);
+        if (m && m[1]) target = decodeURIComponent(m[1]).trim();
+      }
+    }
+
+    // Sanitize any wrapper tokens or whitespace
+    target = target
+      .replace(/^CLUBSPHERE:(PASS|TICKET|MEMBER|CERT):/i, '')
+      .replace(/^CS-APP:\/\/[^/]+\//i, '')
+      .replace(/["']/g, '')
+      .trim();
 
     setIsProcessing(true);
     setActiveStep(1);
@@ -224,17 +295,60 @@ export const QRCheckinView = ({ session, activeClub, onToast }) => {
       img.onload = () => {
         try {
           const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-          const decoded = decodeInAppQR(imageData);
-          if (decoded && decoded.code) {
-            handleProcessScan(decoded.code);
+          const processWithJsQR = () => {
+            // 1. Try original
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let decoded = decodeInAppQR(imgData);
+
+            // 2. Try scaled 600px
+            if (!decoded && (img.width > 700 || img.height > 700)) {
+              const scale = Math.min(600 / img.width, 600 / img.height);
+              canvas.width = Math.round(img.width * scale);
+              canvas.height = Math.round(img.height * scale);
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              decoded = decodeInAppQR(imgData);
+            }
+
+            // 3. Try scaled 400px
+            if (!decoded) {
+              const scale = Math.min(400 / img.width, 400 / img.height);
+              canvas.width = Math.round(img.width * scale);
+              canvas.height = Math.round(img.height * scale);
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              decoded = decodeInAppQR(imgData);
+            }
+
+            if (decoded && decoded.code) {
+              handleProcessScan(decoded.code);
+            } else {
+              alert('No valid ClubSphere pass detected in this photo. Please make sure the QR image is clearly visible.');
+            }
+          };
+
+          // Try native BarcodeDetector if available
+          if ('BarcodeDetector' in window) {
+            try {
+              const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+              detector.detect(img).then(barcodes => {
+                if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                  handleProcessScan(barcodes[0].rawValue);
+                } else {
+                  processWithJsQR();
+                }
+              }).catch(() => processWithJsQR());
+              return;
+            } catch (err) {
+              processWithJsQR();
+            }
           } else {
-            alert('No valid ClubSphere pass detected in this photo. Please make sure the QR image is clearly visible.');
+            processWithJsQR();
           }
         } catch (err) {
           alert('Error processing QR image: ' + err.message);
@@ -243,6 +357,7 @@ export const QRCheckinView = ({ session, activeClub, onToast }) => {
       img.src = event.target.result;
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const handleQuickAdmit = (memberId) => {

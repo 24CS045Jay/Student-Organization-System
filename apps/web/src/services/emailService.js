@@ -67,3 +67,102 @@ export const sendTicketConfirmationEmail = async ({ recipientEmail, attendeeName
 
   return sendEmail({ to: recipientEmail, subject, html, text: subject });
 };
+
+/**
+ * Sends Official Club Domain Login Credentials to User's Personal Email
+ */
+export const sendClubCredentialsEmail = async ({
+  personalEmail,
+  userName,
+  clubName,
+  clubPrefix,
+  clubDomainEmail,
+  temporaryPassword,
+  role = 'student',
+  loginUrl
+}) => {
+  const subject = `🔐 Your Official Login Credentials for ${clubName}`;
+  const targetLoginUrl = loginUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://clubsphere-campus-os.vercel.app');
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8" />
+      <title>Official ClubSphere Credentials</title>
+    </head>
+    <body style="margin: 0; padding: 24px; background-color: #FFFDF7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <div style="max-width: 540px; margin: 0 auto; background-color: #FFFFFF; border: 3px solid #121212; border-radius: 16px; overflow: hidden; box-shadow: 6px 6px 0px #121212;">
+        
+        <!-- Header Banner -->
+        <div style="background-color: #FFE853; border-bottom: 3px solid #121212; padding: 20px; text-align: left;">
+          <span style="font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; background-color: #121212; color: #FFE853; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px;">
+            Official Club Account Provisioned
+          </span>
+          <h1 style="margin: 0; font-size: 22px; font-weight: 900; color: #121212;">Welcome to ${clubName}! 🎉</h1>
+        </div>
+
+        <!-- Body -->
+        <div style="padding: 24px; color: #121212;">
+          <p style="font-size: 15px; margin: 0 0 16px; line-height: 1.5;">
+            Hello <strong>${userName}</strong>,
+          </p>
+          <p style="font-size: 14px; margin: 0 0 20px; color: #4B5563; line-height: 1.5;">
+            Your registration for <strong>${clubName}</strong> has been confirmed. In accordance with campus data governance and security policies, your personal email is for credential delivery and account recovery.
+          </p>
+
+          <!-- Credential Card -->
+          <div style="background-color: #F4F4F5; border: 2.5px solid #121212; border-radius: 12px; padding: 18px; margin-bottom: 20px; box-shadow: 3px 3px 0px #121212;">
+            <div style="font-size: 11px; font-weight: 900; text-transform: uppercase; color: #71717A; margin-bottom: 6px;">Your Authorized Login Identity:</div>
+            
+            <div style="margin-bottom: 12px;">
+              <div style="font-size: 12px; font-weight: 700; color: #52525B;">Official Club Domain Email:</div>
+              <div style="font-size: 17px; font-weight: 900; color: #7C3AED; font-family: monospace; background: #FFFFFF; padding: 8px 12px; border: 1.5px solid #121212; border-radius: 6px; margin-top: 4px;">
+                ${clubDomainEmail}
+              </div>
+            </div>
+
+            <div style="margin-bottom: 12px;">
+              <div style="font-size: 12px; font-weight: 700; color: #52525B;">Initial Account Password:</div>
+              <div style="font-size: 17px; font-weight: 900; color: #DC2626; font-family: monospace; background: #FFFFFF; padding: 8px 12px; border: 1.5px solid #121212; border-radius: 6px; margin-top: 4px;">
+                ${temporaryPassword}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size: 12px; font-weight: 700; color: #52525B;">Assigned Role:</div>
+              <div style="font-size: 13px; font-weight: 800; color: #121212; margin-top: 2px;">
+                ${role.toUpperCase()}
+              </div>
+            </div>
+          </div>
+
+          <!-- Policy Alert -->
+          <div style="background-color: #FEF3C7; border: 2px solid #F59E0B; border-radius: 8px; padding: 12px; font-size: 12px; font-weight: 700; color: #92400E; margin-bottom: 24px; line-height: 1.4;">
+            ⚠️ <strong>Crucial Login Notice:</strong> You <strong>cannot</strong> log in with your personal email (<code>${personalEmail}</code>). The authentication portal will only accept your official club email (<code>${clubDomainEmail}</code>).
+          </div>
+
+          <!-- Action Button -->
+          <div style="text-align: center;">
+            <a href="${targetLoginUrl}" style="display: inline-block; background-color: #121212; color: #FFFFFF; font-size: 15px; font-weight: 900; text-decoration: none; padding: 14px 32px; border-radius: 10px; border: 2px solid #121212; box-shadow: 4px 4px 0px #FFE853;">
+              Log in to ClubSphere &rarr;
+            </a>
+          </div>
+
+          <div style="margin-top: 24px; padding-top: 16px; border-top: 2px dashed #E4E4E7; font-size: 11px; color: #71717A; text-align: center;">
+            This security email was delivered to <strong>${personalEmail}</strong> by ClubSphere Campus OS.
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: personalEmail,
+    subject,
+    html,
+    text: `Welcome to ${clubName}! Your official login email is: ${clubDomainEmail}, and password is: ${temporaryPassword}. You must log in using this official club email. Login at: ${targetLoginUrl}`
+  });
+};
+

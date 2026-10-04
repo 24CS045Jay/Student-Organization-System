@@ -32,6 +32,20 @@ export const FeedbackView = ({ session, activeClub, onDataChange, onToast }) => 
     }
   };
 
+  const totalReviews = feedbackList.length;
+  const avgOverall = totalReviews > 0
+    ? (feedbackList.reduce((acc, f) => acc + (f.ratings?.overall || f.rating || 5), 0) / totalReviews).toFixed(1)
+    : '5.0';
+  const avgSpeaker = totalReviews > 0
+    ? (feedbackList.reduce((acc, f) => acc + (f.ratings?.speaker || 5), 0) / totalReviews).toFixed(1)
+    : '5.0';
+  const avgVenue = totalReviews > 0
+    ? (feedbackList.reduce((acc, f) => acc + (f.ratings?.venue || 4.5), 0) / totalReviews).toFixed(1)
+    : '4.8';
+  const positivePercentage = totalReviews > 0
+    ? Math.round((feedbackList.filter(f => (f.ratings?.overall || f.rating || 5) >= 4).length / totalReviews) * 100)
+    : 100;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
@@ -52,22 +66,22 @@ export const FeedbackView = ({ session, activeClub, onDataChange, onToast }) => 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
         <StatCard
           title="Overall Satisfaction"
-          value="4.9 / 5.0"
-          subtitle="98% Positive Feedback"
+          value={`${avgOverall} / 5.0`}
+          subtitle={`${positivePercentage}% Positive Feedback (${totalReviews} reviews)`}
           icon={Star}
           color="var(--accent-yellow)"
         />
         <StatCard
           title="Speaker & Content"
-          value="4.8 / 5.0"
+          value={`${avgSpeaker} / 5.0`}
           subtitle="Workshops & Hackathons"
           icon={ThumbsUp}
           color="var(--accent-green)"
         />
         <StatCard
           title="Venue & Logistics"
-          value="4.7 / 5.0"
-          subtitle="Check-in Speed & Wi-Fi"
+          value={`${avgVenue} / 5.0`}
+          subtitle="Check-in Speed & Facilities"
           icon={MessageSquare}
           color="var(--accent-purple)"
         />

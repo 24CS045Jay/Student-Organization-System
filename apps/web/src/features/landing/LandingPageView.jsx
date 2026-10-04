@@ -11,7 +11,7 @@ import {
   Plus
 } from 'lucide-react';
 
-export const LandingPageView = ({ onLoginClick, onRegisterClick, onSuperAdminClick }) => {
+export const LandingPageView = ({ onLoginClick, onRegisterClick, onSuperAdminClick, onQuickRoleClick }) => {
   const features = [
     {
       icon: <Ticket size={24} />,
@@ -96,6 +96,17 @@ export const LandingPageView = ({ onLoginClick, onRegisterClick, onSuperAdminCli
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {onQuickRoleClick && (
+            <button
+              onClick={onQuickRoleClick}
+              className="neo-btn neo-btn-pink neo-btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              title="Test any role instantly"
+            >
+              <Sparkles size={14} />
+              <span>Quick Demo Roles</span>
+            </button>
+          )}
           <button
             onClick={onSuperAdminClick}
             className="neo-btn neo-btn-yellow neo-btn-sm"

@@ -24,9 +24,21 @@ export const ClubDashboardView = ({ session, activeClub, onNavigate }) => {
   const tasks = club.tasks || [];
   const merchandise = club.merchandise || [];
 
+  const budgetAllocated = Number(finance.budgetAllocated) || 150000;
+  const budgetSpent = Number(finance.totalExpenses) || 0;
+  const budgetBurnPct = Math.min(100, Math.round((budgetSpent / budgetAllocated) * 100));
+
+  const getStockCount = (stock) => {
+    if (typeof stock === 'number') return stock;
+    if (typeof stock === 'object' && stock !== null) {
+      return Object.values(stock).reduce((a, b) => a + (Number(b) || 0), 0);
+    }
+    return 0;
+  };
+
   const activeMembers = members.filter(m => m.status === 'Active').length;
-  const pendingTasks = tasks.filter(t => t.status === 'Pending').length;
-  const lowStockItems = merchandise.filter(m => Object.values(m.stock).reduce((a, b) => a + b, 0) < 15);
+  const pendingTasks = tasks.filter(t => t.status === 'Pending' || t.stage === 'To Do').length;
+  const lowStockItems = merchandise.filter(m => getStockCount(m.stock) < 15);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -64,7 +76,7 @@ export const ClubDashboardView = ({ session, activeClub, onNavigate }) => {
       </div>
 
       {/* KPI Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
         <StatCard
           title="Active Members"
           value={activeMembers}
@@ -79,6 +91,13 @@ export const ClubDashboardView = ({ session, activeClub, onNavigate }) => {
           subtitle={`Gross: ${inr(finance.totalIncome)}`}
           icon={DollarSign}
           color="var(--accent-green)"
+        />
+        <StatCard
+          title="Allocated Budget"
+          value={inr(budgetAllocated)}
+          subtitle={`Burn: ${inr(budgetSpent)} (${budgetBurnPct}%)`}
+          icon={TrendingUp}
+          color="#FEF08A"
         />
         <StatCard
           title="Active Events"
@@ -108,43 +127,95 @@ export const ClubDashboardView = ({ session, activeClub, onNavigate }) => {
             </Button>
           }
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {events.slice(0, 2).map((ev) => {
-              const pct = Math.round((ev.sold / ev.capacity) * 100);
-              return (
-                <div
-                  key={ev.id}
-                  style={{
-                    padding: '14px',
-                    backgroundColor: '#FAF5EE',
-                    border: '2px solid #000',
-                    borderRadius: '14px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 style={{ fontSize: '15px', fontWeight: 900, margin: 0 }}>{ev.title}</h4>
-                    <Badge variant={ev.sold >= ev.capacity ? 'black' : 'green'}>
-                      {ev.sold >= ev.capacity ? 'Sold Out' : `${ev.sold}/${ev.capacity} Seats`}
-                    </Badge>
+          {events.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '36px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+              <div style={{ fontSize: '36px' }}>📅</div>
+              <div style={{ fontWeight: 900, fontSize: '15px' }}>No Upcoming Events Scheduled</div>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-muted)', maxWidth: '340px', margin: 0 }}>
+                Create workshops, hackathons, or orientations to open registrations and sell tickets dynamically.
+              </p>
+              <Button variant="black" size="sm" onClick={() => onNavigate('events-list')}>
+                + Create First Event
+              </Button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {events.slice(0, 2).map((ev) => {
+                const pct = Math.round((ev.sold / ev.capacity) * 100);
+                return (
+                  <div
+                    key={ev.id}
+                    style={{
+                      padding: '14px',
+                      backgroundColor: '#FAF5EE',
+                      border: '2px solid #000',
+                      borderRadius: '14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h4 style={{ fontSize: '15px', fontWeight: 900, margin: 0 }}>{ev.title}</h4>
+                      <Badge variant={ev.sold >= ev.capacity ? 'black' : 'green'}>
+                        {ev.sold >= ev.capacity ? 'Sold Out' : `${ev.sold}/${ev.capacity} Seats`}
+                      </Badge>
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--ink-muted)', fontWeight: 700 }}>
+                      {ev.date} • {ev.location}
+                    </div>
+                    <ProgressBar value={ev.sold} max={ev.capacity} color="var(--accent-green)" height={8} />
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--ink-muted)', fontWeight: 700 }}>
-                    {ev.date} • {ev.location}
-                  </div>
-                  <ProgressBar value={ev.sold} max={ev.capacity} color="var(--accent-green)" height={8} />
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </Card>
 
-        {/* Right: Low Stock & Action Center */}
+        {/* Right: Budget Burn, Low Stock & Action Center */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Live Semester Budget Tracker */}
+          <Card
+            title="📊 Semester Budget Quota & Burn Rate"
+            headerBg="var(--accent-yellow)"
+            headerAction={
+              <Button variant="black" size="sm" onClick={() => onNavigate('financial-dash')}>
+                Manage Budget
+              </Button>
+            }
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 900 }}>
+                <span>Budget Spent: {inr(budgetSpent)}</span>
+                <span>Quota: {inr(budgetAllocated)}</span>
+              </div>
+              <ProgressBar
+                value={budgetSpent}
+                max={budgetAllocated}
+                color={budgetBurnPct > 85 ? 'var(--accent-pink)' : 'var(--accent-green)'}
+                height={12}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, color: 'var(--ink-muted)' }}>
+                <span>Remaining: {inr(Math.max(0, budgetAllocated - budgetSpent))}</span>
+                <span style={{ fontWeight: 900, color: budgetBurnPct > 85 ? '#DC2626' : '#059669' }}>
+                  {budgetBurnPct}% Utilized
+                </span>
+              </div>
+            </div>
+          </Card>
+
           {/* Low stock alerts */}
-          <Card title="⚠️ Low Inventory Stock Warning" headerBg="var(--accent-pink)">
-            {lowStockItems.length === 0 ? (
+          <Card title="⚠️ Inventory Stock Status" headerBg="var(--accent-pink)">
+            {merchandise.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '14px 8px' }}>
+                <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-muted)', margin: '0 0 10px' }}>
+                  No merchandise items in catalog yet.
+                </p>
+                <Button variant="yellow" size="sm" onClick={() => onNavigate('inventory')}>
+                  + Add Merchandise
+                </Button>
+              </div>
+            ) : lowStockItems.length === 0 ? (
               <p style={{ fontSize: '13px', fontWeight: 700, color: '#059669' }}>
                 ✓ All merchandise sizes well-stocked!
               </p>
