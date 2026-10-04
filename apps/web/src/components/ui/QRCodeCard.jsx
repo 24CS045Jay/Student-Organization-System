@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Badge, Button } from './index';
-import { Check, Copy, QrCode, ShieldCheck, Sparkles, Lock } from 'lucide-react';
+import { Check, Copy, QrCode, ShieldCheck, Sparkles, Lock, CalendarPlus, Share2, Download, ExternalLink } from 'lucide-react';
+import { getGoogleCalendarUrl, downloadIcsCalendarFile, getWhatsAppShareUrl } from '../../services/calendarService';
 import QRCodeLib from 'qrcode';
 
 // Universal ClubSphere Verified QR Code Pass
@@ -88,7 +89,6 @@ export const NeoQRCode = ({ code = 'TC-001', size = 150, color = '#121212' }) =>
     </div>
   );
 };
-
 // Digital Member Pass (FR-01, FR-02, Item C)
 export const DigitalMemberCard = ({
   member,
@@ -238,6 +238,40 @@ export const DigitalMemberCard = ({
           ⚡ Present this QR at registration desks for fast-track entry and merch discounts.
         </p>
 
+        {/* WhatsApp Sharing Button for Digital ID */}
+        <div style={{ marginTop: '12px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              const url = getWhatsAppShareUrl({
+                title: `${member.name}'s ${clubName} Digital ID Card`,
+                subtitle: `Tier: ${member.type} • Roll No: ${member.studentId}`,
+                refId: member.id
+              });
+              window.open(url, '_blank');
+            }}
+            className="neo-btn neo-btn-sm"
+            style={{
+              width: '100%',
+              backgroundColor: '#25D366',
+              color: '#FFFFFF',
+              border: '2px solid #121212',
+              boxShadow: '2px 2px 0px #121212',
+              fontWeight: 900,
+              fontSize: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              padding: '8px 12px',
+              cursor: 'pointer'
+            }}
+          >
+            <Share2 size={14} />
+            <span>Share Digital ID to WhatsApp</span>
+          </button>
+        </div>
+
         {isExpired && onRenew && (
           <div style={{ marginTop: '16px' }}>
             <Button variant="yellow" style={{ width: '100%' }} onClick={onRenew}>
@@ -314,6 +348,109 @@ export const DigitalEventTicket = ({ ticket, event, onCancel }) => {
               Scanned at: {ticket.checkInTime || 'Today'}
             </Badge>
           )}
+        </div>
+
+        {/* Pass Actions: Calendar & WhatsApp */}
+        <div
+          style={{
+            backgroundColor: '#FAF5EE',
+            border: '2px solid #121212',
+            borderRadius: '12px',
+            padding: '12px',
+            marginBottom: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}
+        >
+          <div style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--ink-muted)' }}>
+            ⚡ Instant Pass Actions
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                const gCalUrl = getGoogleCalendarUrl({
+                  title: ticket.eventTitle,
+                  description: `Event Ticket Pass ${ticket.id} for ${ticket.attendeeName} (Seat: ${ticket.seat})`,
+                  location: event?.location || 'Campus Auditorium',
+                  date: event?.date,
+                  time: event?.time
+                });
+                window.open(gCalUrl, '_blank');
+              }}
+              className="neo-btn neo-btn-sm neo-btn-white"
+              style={{
+                fontSize: '11px',
+                fontWeight: 900,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                padding: '6px 8px'
+              }}
+            >
+              <CalendarPlus size={13} />
+              <span>Google Calendar</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                downloadIcsCalendarFile({
+                  title: ticket.eventTitle,
+                  description: `Event Pass ${ticket.id} for ${ticket.attendeeName} (Seat: ${ticket.seat})`,
+                  location: event?.location || 'Campus Auditorium',
+                  date: event?.date,
+                  time: event?.time,
+                  filename: `${ticket.id}-event.ics`
+                });
+              }}
+              className="neo-btn neo-btn-sm neo-btn-white"
+              style={{
+                fontSize: '11px',
+                fontWeight: 900,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                padding: '6px 8px'
+              }}
+            >
+              <Download size={13} />
+              <span>Download .ICS</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              const waUrl = getWhatsAppShareUrl({
+                title: `${ticket.eventTitle} Entry Pass`,
+                subtitle: `Attendee: ${ticket.attendeeName} • Seat: ${ticket.seat}`,
+                refId: ticket.id
+              });
+              window.open(waUrl, '_blank');
+            }}
+            className="neo-btn neo-btn-sm"
+            style={{
+              backgroundColor: '#25D366',
+              color: '#FFFFFF',
+              border: '2px solid #121212',
+              boxShadow: '2px 2px 0px #121212',
+              fontWeight: 900,
+              fontSize: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              padding: '8px 12px',
+              cursor: 'pointer'
+            }}
+          >
+            <Share2 size={13} />
+            <span>Send Ticket Pass to WhatsApp</span>
+          </button>
         </div>
 
         <div

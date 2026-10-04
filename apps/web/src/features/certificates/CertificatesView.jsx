@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/ui/index';
 import { NeoQRCode } from '../../components/ui/QRCodeCard';
 import { clubService } from '../../services/clubService';
-import { Award, Plus, Download, CheckCircle2, QrCode, Sparkles, Trash2 } from 'lucide-react';
+import { Award, Plus, Download, CheckCircle2, QrCode, Sparkles, Trash2, Share2, ExternalLink } from 'lucide-react';
+import { getWhatsAppShareUrl, getLinkedInShareUrl } from '../../services/calendarService';
 
 export const CertificatesView = ({ session, activeClub, onDataChange, onToast }) => {
   const [selectedCert, setSelectedCert] = useState(null);
@@ -138,6 +139,10 @@ export const CertificatesView = ({ session, activeClub, onDataChange, onToast })
             <div class="sign-box">
               <div class="sign-title">${activeClub.name} Executive Board</div>
               <div class="sign-sub">Issued Date: ${cert.issueDate}</div>
+            </div>
+            <div style="text-align: center;">
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(window.location.origin + '/?verify=' + cert.id)}" width="80" height="80" style="border: 2px solid #000; border-radius: 8px; display: block; margin: 0 auto 4px;" alt="QR Code" />
+              <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.5px;">SCAN TO VERIFY</div>
             </div>
             <div class="hash-box">
               <div class="sign-title">Certificate ID: ${cert.id}</div>
@@ -313,9 +318,71 @@ export const CertificatesView = ({ session, activeClub, onDataChange, onToast })
               </div>
             </div>
 
+            {/* Social Share Buttons */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '18px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const url = getWhatsAppShareUrl({
+                    title: `Official Certificate: ${selectedCert.type}`,
+                    subtitle: `Recipient: ${selectedCert.studentName} • ${selectedCert.eventName}`,
+                    refId: selectedCert.id
+                  });
+                  window.open(url, '_blank');
+                }}
+                className="neo-btn neo-btn-sm"
+                style={{
+                  backgroundColor: '#25D366',
+                  color: '#FFFFFF',
+                  border: '2px solid #121212',
+                  boxShadow: '2px 2px 0px #121212',
+                  fontWeight: 900,
+                  fontSize: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '9px 12px',
+                  cursor: 'pointer'
+                }}
+              >
+                <Share2 size={14} />
+                <span>Share to WhatsApp</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const url = getLinkedInShareUrl({
+                    title: `${selectedCert.type} - ${selectedCert.eventName}`,
+                    summary: `Verified Certificate awarded to ${selectedCert.studentName} by ${activeClub.name}.`
+                  });
+                  window.open(url, '_blank');
+                }}
+                className="neo-btn neo-btn-sm"
+                style={{
+                  backgroundColor: '#0A66C2',
+                  color: '#FFFFFF',
+                  border: '2px solid #121212',
+                  boxShadow: '2px 2px 0px #121212',
+                  fontWeight: 900,
+                  fontSize: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '9px 12px',
+                  cursor: 'pointer'
+                }}
+              >
+                <ExternalLink size={14} />
+                <span>Share on LinkedIn</span>
+              </button>
+            </div>
+
             <Button
               variant="yellow"
-              style={{ width: '100%', marginTop: '20px' }}
+              style={{ width: '100%', marginTop: '12px' }}
               onClick={() => {
                 handlePrintCertificate(selectedCert);
                 setSelectedCert(null);

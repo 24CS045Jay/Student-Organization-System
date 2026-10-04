@@ -1,24 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Button, Badge, Drawer, Modal, ProgressBar } from '../../components/ui/index';
-import { clubService } from '../../services/clubService';
-import {
-  Calendar,
-  Plus,
-  Edit,
-  Trash2,
-  Users,
-  DollarSign,
-  TrendingUp,
-  CheckCircle,
-  Clock,
-  Eye,
-  Globe,
-  XCircle,
-  CheckSquare,
-  User,
-  Sparkles,
-  AlertCircle
-} from 'lucide-react';
+import { clubService } from '../../services/clubService';https://github.githubassets.com/images/spinners/octocat-spinner-128.gif
+import { Calendar, Plus, Edit, Trash2, Users, DollarSign, TrendingUp, CheckCircle, Clock, Eye, Globe, XCircle, FileSpreadsheet, Printer, Download } from 'lucide-react';
 
 export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, onNavigate }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -679,44 +662,156 @@ export const EventsManagerView = ({ session, activeClub, onDataChange, onToast, 
       <Drawer
         isOpen={Boolean(selectedEventForProfit)}
         onClose={() => setSelectedEventForProfit(null)}
-        title={`Profitability & Budget — ${selectedEventForProfit?.title}`}
+        title={`Executive ROI & P&L Statement — ${selectedEventForProfit?.title}`}
         headerColor="var(--accent-purple)"
       >
-        {selectedEventForProfit && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ padding: '16px', backgroundColor: '#FAF5EE', border: '2.5px solid #000', borderRadius: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--ink-muted)' }}>Estimated Ticket Revenue</span>
-                <span style={{ fontSize: '18px', fontWeight: 900, color: '#059669' }}>
-                  +₹{(selectedEventForProfit.sold * ((selectedEventForProfit.memberPrice + selectedEventForProfit.nonMemberPrice) / 2)).toLocaleString()}
-                </span>
+        {selectedEventForProfit && (() => {
+          const avgTicketPrice = (selectedEventForProfit.memberPrice + selectedEventForProfit.nonMemberPrice) / 2;
+          const ticketRevenue = selectedEventForProfit.sold * avgTicketPrice;
+          const totalExpenses = Object.values(selectedEventForProfit.budget || {}).reduce((a, b) => a + b, 0);
+          const netSurplus = ticketRevenue - totalExpenses;
+          const isProfitable = netSurplus >= 0;
+          const roiPercent = totalExpenses > 0 ? ((netSurplus / totalExpenses) * 100).toFixed(1) : '100.0';
+          const costPerAttendee = selectedEventForProfit.sold > 0 ? (totalExpenses / selectedEventForProfit.sold).toFixed(0) : '0';
+          const fillRate = Math.round((selectedEventForProfit.sold / (selectedEventForProfit.capacity || 1)) * 100);
+
+          const handleExportCsv = () => {
+            const rows = [
+              ['ClubSphere Executive Event P&L Statement'],
+              ['Organization', activeClub.name],
+              ['Event Title', selectedEventForProfit.title],
+              ['Date & Time', `${selectedEventForProfit.date} ${selectedEventForProfit.time}`],
+              ['Location', selectedEventForProfit.location],
+              ['Tickets Sold', `${selectedEventForProfit.sold} / ${selectedEventForProfit.capacity} (${fillRate}%)`],
+              [],
+              ['Financial Metric', 'Amount (INR)'],
+              ['Gross Ticket Revenue', ticketRevenue],
+              ['Total Expenses Allocated', totalExpenses],
+              ['Net Event Margin', netSurplus],
+              ['ROI (%)', `${roiPercent}%`],
+              ['Cost Per Attendee', `INR ${costPerAttendee}`],
+              [],
+              ['Budget Breakdown Category', 'Allocation (INR)']
+            ];
+            Object.entries(selectedEventForProfit.budget || {}).forEach(([cat, amt]) => {
+              rows.push([cat, amt]);
+            });
+
+            const csvContent = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${selectedEventForProfit.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}-financial-roi.csv`;
+            a.click();
+            URL.revokeObjectURL(a);
+            if (onToast) onToast(`📊 Downloaded P&L CSV statement for "${selectedEventForProfit.title}"`);
+          };
+
+          const handlePrintStatement = () => {
+            window.print();
+          };
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              {/* Top KPI Cards Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div style={{ padding: '14px', backgroundColor: '#FAF5EE', border: '2px solid #121212', borderRadius: '14px', boxShadow: '3px 3px 0px #121212' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--ink-muted)' }}>Gross Ticket Revenue</div>
+                  <div style={{ fontSize: '22px', fontWeight: 900, color: '#059669', marginTop: '4px' }}>
+                    +₹{ticketRevenue.toLocaleString()}
+                  </div>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ink-muted)', marginTop: '2px' }}>
+                    {selectedEventForProfit.sold} passes sold
+                  </div>
+                </div>
+
+                <div style={{ padding: '14px', backgroundColor: '#FAF5EE', border: '2px solid #121212', borderRadius: '14px', boxShadow: '3px 3px 0px #121212' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--ink-muted)' }}>Total Allocated Cost</div>
+                  <div style={{ fontSize: '22px', fontWeight: 900, color: '#DC2626', marginTop: '4px' }}>
+                    -₹{totalExpenses.toLocaleString()}
+                  </div>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ink-muted)', marginTop: '2px' }}>
+                    ₹{costPerAttendee} / attendee
+                  </div>
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--ink-muted)' }}>Total Allocated Expenses</span>
-                <span style={{ fontSize: '18px', fontWeight: 900, color: '#DC2626' }}>
-                  -₹{Object.values(selectedEventForProfit.budget || {}).reduce((a, b) => a + b, 0).toLocaleString()}
-                </span>
+
+              {/* Net Surplus & ROI Banner */}
+              <div
+                style={{
+                  padding: '16px',
+                  backgroundColor: isProfitable ? '#ECFDF5' : '#FEF2F2',
+                  border: `2.5px solid ${isProfitable ? '#059669' : '#DC2626'}`,
+                  borderRadius: '16px',
+                  boxShadow: '3px 3px 0px #121212',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: isProfitable ? '#065F46' : '#991B1B' }}>
+                    {isProfitable ? '✅ Net Event Surplus' : '⚠️ Net Event Deficit'}
+                  </div>
+                  <div style={{ fontSize: '24px', fontWeight: 900, color: isProfitable ? '#059669' : '#DC2626', marginTop: '2px' }}>
+                    {isProfitable ? `+₹${netSurplus.toLocaleString()}` : `-₹${Math.abs(netSurplus).toLocaleString()}`}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--ink-muted)' }}>Return on Spend</span>
+                  <div style={{ fontSize: '18px', fontWeight: 900, color: isProfitable ? '#059669' : '#DC2626' }}>
+                    {roiPercent}%
+                  </div>
+                </div>
               </div>
-              <div style={{ borderTop: '2px solid #000', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '14px', fontWeight: 900 }}>Net Event Surplus / Margin:</span>
-                <Badge variant="green" style={{ fontSize: '14px' }}>
-                  ₹{((selectedEventForProfit.sold * ((selectedEventForProfit.memberPrice + selectedEventForProfit.nonMemberPrice) / 2)) - Object.values(selectedEventForProfit.budget || {}).reduce((a, b) => a + b, 0)).toLocaleString()}
-                </Badge>
+
+              {/* Attendance & Capacity Meter */}
+              <div style={{ padding: '14px', backgroundColor: '#FFFFFF', border: '2px solid #121212', borderRadius: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 900, marginBottom: '6px' }}>
+                  <span>Auditorium Fill Rate ({fillRate}%)</span>
+                  <span>{selectedEventForProfit.sold} / {selectedEventForProfit.capacity} seats</span>
+                </div>
+                <ProgressBar value={selectedEventForProfit.sold} max={selectedEventForProfit.capacity} color="var(--accent-purple)" />
+              </div>
+
+              {/* Budget Itemized Breakdown */}
+              <Card title="Itemized Expense Ledger" headerBg="var(--accent-yellow)">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {Object.entries(selectedEventForProfit.budget || {}).map(([item, amt]) => (
+                    <div key={item} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 800 }}>
+                      <span style={{ textTransform: 'capitalize' }}>• {item} Cost</span>
+                      <span>₹{amt.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              {/* Export & Action Buttons */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  className="neo-btn neo-btn-sm neo-btn-black"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px' }}
+                >
+                  <FileSpreadsheet size={15} />
+                  <span>Export CSV</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePrintStatement}
+                  className="neo-btn neo-btn-sm neo-btn-white"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px' }}
+                >
+                  <Printer size={15} />
+                  <span>Print P&L</span>
+                </button>
               </div>
             </div>
-
-            <Card title="Detailed Expense Breakdown" headerBg="var(--accent-yellow)">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {Object.entries(selectedEventForProfit.budget || {}).map(([item, amt]) => (
-                  <div key={item} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 800 }}>
-                    <span style={{ textTransform: 'capitalize' }}>• {item} Allocation</span>
-                    <span>₹{amt.toLocaleString()}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-        )}
+          );
+        })()}
       </Drawer>
 
       {/* Edit Event Drawer */}

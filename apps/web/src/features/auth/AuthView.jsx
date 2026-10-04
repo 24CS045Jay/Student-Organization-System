@@ -35,8 +35,20 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, onSuperAdminClick, in
   const [registrationSuccess, setRegistrationSuccess] = useState(null);
   const [copiedEmail, setCopiedEmail] = useState(false);
 
-  // Available registered clubs from database
-  const registeredClubs = Object.values(dbInstance.data.clubs || {});
+  // Available registered clubs from database (reactive state)
+  const [registeredClubs, setRegisteredClubs] = useState(() => Object.values(dbInstance.data.clubs || {}));
+
+  const handleSeedDemoClub = () => {
+    try {
+      const demoClub = clubService.seedDemoClub();
+      const updated = Object.values(dbInstance.data.clubs || {});
+      setRegisteredClubs(updated);
+      setSelectedOrgId(demoClub.id);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
 
   // Available roles
   const roles = [
@@ -296,6 +308,34 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, onSuperAdminClick, in
                 Autofill official club email &rarr;
               </button>
             )}
+            {error.includes('assigned club email is') && (
+              <button
+                type="button"
+                onClick={() => {
+                  const match = error.match(/assigned club email is "([^"]+)"/);
+                  if (match && match[1]) {
+                    setMode('login');
+                    setClubLoginEmail(match[1]);
+                    setError(null);
+                  }
+                }}
+                className="neo-btn neo-btn-white neo-btn-sm"
+                style={{
+                  alignSelf: 'flex-start',
+                  backgroundColor: '#FFFFFF',
+                  color: '#121212',
+                  border: '2px solid #121212',
+                  boxShadow: '2px 2px 0px #121212',
+                  fontWeight: 900,
+                  fontSize: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <span>👉 Switch to Sign In with this Email</span>
+              </button>
+            )}
           </div>
         )}
 
@@ -395,30 +435,44 @@ export const AuthView = ({ onAuthSuccess, onBackToLanding, onSuperAdminClick, in
         ) : mode === 'register' ? (
           /* CASE 2: Sign Up Form (Personal Email -> Club Email Assignment) */
           <form onSubmit={handleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {registeredClubs.length === 0 && onSuperAdminClick && (
+            {registeredClubs.length === 0 && (
               <div
                 style={{
-                  padding: '12px 14px',
+                  padding: '14px',
                   backgroundColor: '#FEF9C3',
                   border: '2px solid #CA8A04',
-                  borderRadius: '8px',
+                  borderRadius: '10px',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
+                  flexDirection: 'column',
                   gap: '10px'
                 }}
               >
-                <span style={{ fontSize: '12px', fontWeight: 800, color: '#854D0E' }}>
-                  ⚠️ No clubs exist yet in the system.
-                </span>
-                <button
-                  type="button"
-                  onClick={onSuperAdminClick}
-                  className="neo-btn neo-btn-yellow neo-btn-sm"
-                  style={{ whiteSpace: 'nowrap', fontSize: '11px', padding: '6px 10px' }}
-                >
-                  Create in Super Admin
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 800, color: '#854D0E' }}>
+                    ⚠️ No clubs exist yet in the database.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleSeedDemoClub}
+                    className="neo-btn neo-btn-green neo-btn-sm"
+                    style={{ whiteSpace: 'nowrap', fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Sparkles size={14} />
+                    <span>🌱 Quick Seed Demo Club</span>
+                  </button>
+                </div>
+                {onSuperAdminClick && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      onClick={onSuperAdminClick}
+                      className="neo-btn neo-btn-yellow neo-btn-sm"
+                      style={{ fontSize: '11px', padding: '4px 8px' }}
+                    >
+                      Or Open Super Admin Portal
+                    </button>
+                  </div>
+                )}
               </div>
             )}
             {/* Full Name */}

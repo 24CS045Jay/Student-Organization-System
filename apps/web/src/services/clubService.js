@@ -2124,11 +2124,25 @@ export const clubService = {
     if (!user) {
       const matchedByPersonal = dbInstance.data.users.find(u => u.personalEmail?.toLowerCase() === cleanEmail);
       if (matchedByPersonal) {
+        sendEmail({
+          to: matchedByPersonal.personalEmail,
+          subject: '🔐 Your ClubSphere Login Credentials',
+          html: `<div style="font-family: sans-serif; padding: 20px; background-color: #FAF5EE; border: 2px solid #000;">
+                  <h2>Hello ${matchedByPersonal.name},</h2>
+                  <p>You recently tried to log in using your personal email. Here are your official credentials:</p>
+                  <div style="background-color: #FFF; padding: 15px; border: 2px solid #000; margin: 15px 0;">
+                    <p><strong>Official Club Login Email:</strong> <code style="color: #2563EB; font-size: 16px;">${matchedByPersonal.clubEmail}</code></p>
+                    <p><strong>Current Password:</strong> <code>${matchedByPersonal.password}</code></p>
+                  </div>
+                  <p>Please use these credentials on the Sign In page.</p>
+                </div>`
+        });
+
         return {
           success: false,
           isPersonalEmail: true,
           assignedClubEmail: matchedByPersonal.clubEmail,
-          error: `⛔ PERSONAL EMAIL BLOCKED: You cannot log in with personal email "${cleanEmail}". Institutional security requires signing in with your official club email: "${matchedByPersonal.clubEmail}".`
+          error: `⛔ PERSONAL EMAIL BLOCKED: You cannot log in with personal email "${cleanEmail}". Institutional security requires signing in with your official club email: "${matchedByPersonal.clubEmail}". We also sent your credentials to your personal email inbox!`
         };
       }
       return {
@@ -2353,6 +2367,68 @@ export const clubService = {
     });
 
     return { ...newClub, generatedAdminEmail: adminClubEmail, generatedAdminPassword: adminInitialPassword };
+  },
+
+  seedDemoClub: () => {
+    const demoClub = clubService.createClubOrganization({
+      id: 'football',
+      name: 'Campus Football Club',
+      short: 'Football Club',
+      prefix: 'FC',
+      category: 'Sports & Athletics',
+      department: 'Department of Physical Education & Sports',
+      facultyAdvisor: 'Coach Rajesh Sharma',
+      emailDomain: '@f.campus.edu',
+      contactEmail: 'football@campus.edu',
+      color: '#FFE853',
+      tagline: 'Passion, Grit, and Campus Championship Glory',
+      description: 'The premier student football club organizing inter-college tournaments, weekly training camps, and collegiate athletic leagues.',
+      tags: ['Football', 'Athletics', 'Tournaments', 'Fitness'],
+      membershipFee: 300,
+      initialGrant: 35000,
+      adminName: 'Captain Leo',
+      adminEmail: 'captainadmin@f.campus.edu',
+      adminPersonalEmail: 'captain.football@gmail.com'
+    }, { email: 'super_admin@clubsphere.demo', role: 'super_admin' });
+
+    if (demoClub && dbInstance.data.clubs['football']) {
+      dbInstance.data.clubs['football'].events = [
+        {
+          id: 'ev-fc-01',
+          title: 'Inter-College Super Cup 2026',
+          category: 'Championship',
+          date: '2026-10-24',
+          time: '04:00 PM',
+          location: 'University Main Sports Complex',
+          capacity: 150,
+          sold: 32,
+          memberPrice: 50,
+          nonMemberPrice: 150,
+          status: 'Published',
+          description: 'High-octane football championship featuring 16 collegiate teams competing for the Champions Trophy.',
+          deadline: '2026-10-23 23:59',
+          organizer: 'Football Club Executive Committee',
+          bannerGradient: 'linear-gradient(135deg, #10B981 0%, #3B82F6 100%)',
+          budget: { venue: 10000, prizes: 20000 },
+          tags: ['Sports', 'Football', 'Trophy']
+        }
+      ];
+
+      dbInstance.data.clubs['football'].merchandise = [
+        {
+          id: 'merch-fc-01',
+          name: 'Official Club Jersey 2026',
+          category: 'Apparel',
+          price: 499,
+          stock: 50,
+          sizes: ['S', 'M', 'L', 'XL'],
+          imageUrl: 'https://images.unsplash.com/photo-1577223625816-7546f13df25d?w=300'
+        }
+      ];
+
+      dbInstance.save();
+    }
+    return demoClub;
   },
 
   deleteClubOrganization: (orgId, session) => {
