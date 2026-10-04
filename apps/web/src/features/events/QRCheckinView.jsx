@@ -66,9 +66,9 @@ export const QRCheckinView = ({ session, activeClub, onToast }) => {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Active Club Events & Selected Event Filter
+  // Active Club Events & Selected Event Filter (Default ALL to auto-detect any valid ticket)
   const clubEvents = clubService.getEvents(activeClub?.id) || [];
-  const [selectedEventId, setSelectedEventId] = useState(clubEvents[0]?.id || 'ALL');
+  const [selectedEventId, setSelectedEventId] = useState('ALL');
 
   // Trigger state for re-rendering live stats and logs
   const [refreshKey, setRefreshKey] = useState(0);
@@ -228,10 +228,11 @@ export const QRCheckinView = ({ session, activeClub, onToast }) => {
     let target = (code || ticketQuery).trim();
     if (!target || isProcessing) return;
 
-    // If payload is a URL (e.g. https://clubsphere-campus-os.vercel.app/?verify=TKT-TC-9801)
-    if (target.includes('?') && (target.startsWith('http://') || target.startsWith('https://'))) {
+    // If payload is a URL (e.g. ?verify=TKT-TC-9801)
+    if (target.includes('?') || target.includes('verify=') || target.includes('ticket=') || target.includes('code=')) {
       try {
-        const u = new URL(target);
+        const urlStr = (target.startsWith('http://') || target.startsWith('https://')) ? target : `http://localhost/${target.replace(/^\//, '')}`;
+        const u = new URL(urlStr);
         const p = u.searchParams.get('verify') || u.searchParams.get('ticket') || u.searchParams.get('code') || u.searchParams.get('id');
         if (p) target = p.trim();
       } catch (e) {
@@ -618,7 +619,7 @@ export const QRCheckinView = ({ session, activeClub, onToast }) => {
             </span>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
               <Button variant="green" size="sm" onClick={() => handlePresetTest('TKT-TC-9801')}>
-                ✓ Valid Pass (TKT-TC-9801)
+                ✓ Demo Pass (TKT-TC-9801)
               </Button>
               <Button variant="yellow" size="sm" onClick={() => handlePresetTest('TC-001')}>
                 ✓ Member Pass (TC-001)
@@ -633,6 +634,22 @@ export const QRCheckinView = ({ session, activeClub, onToast }) => {
                 🚫 Wrong Club (Cultural CC-401)
               </Button>
             </div>
+
+            {/* Dynamic Real Booked Tickets */}
+            {clubTickets.length > 0 && (
+              <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #D1D5DB' }}>
+                <span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--ink-muted)' }}>
+                  🎟️ Your Active Club Tickets ({clubTickets.length}):
+                </span>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                  {clubTickets.slice(0, 4).map(tkt => (
+                    <Button key={tkt.id} variant="white" size="sm" onClick={() => handlePresetTest(tkt.id)}>
+                      {tkt.id} ({tkt.attendeeName})
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -657,6 +674,8 @@ export const QRCheckinView = ({ session, activeClub, onToast }) => {
                     ? '#FEF3C7'
                     : checkInResult.status === 'NOT_REGISTERED'
                     ? '#FEF9C3'
+                    : checkInResult.status === 'WRONG_EVENT'
+                    ? '#FEF9C3'
                     : checkInResult.status === 'WRONG_CLUB'
                     ? '#E0E7FF'
                     : '#FEE2E2',
@@ -668,6 +687,7 @@ export const QRCheckinView = ({ session, activeClub, onToast }) => {
                   {checkInResult.status === 'ATTENDED_SUCCESS' && '🎉'}
                   {checkInResult.status === 'ALREADY_USED' && '⚠️'}
                   {checkInResult.status === 'NOT_REGISTERED' && '📋'}
+                  {checkInResult.status === 'WRONG_EVENT' && '⚠️'}
                   {checkInResult.status === 'WRONG_CLUB' && '🏢'}
                   {checkInResult.status === 'INVALID' && '⛔'}
                 </span>
@@ -679,6 +699,8 @@ export const QRCheckinView = ({ session, activeClub, onToast }) => {
                         : checkInResult.status === 'ALREADY_USED'
                         ? 'yellow'
                         : checkInResult.status === 'NOT_REGISTERED'
+                        ? 'yellow'
+                        : checkInResult.status === 'WRONG_EVENT'
                         ? 'yellow'
                         : checkInResult.status === 'WRONG_CLUB'
                         ? 'purple'
@@ -712,6 +734,22 @@ export const QRCheckinView = ({ session, activeClub, onToast }) => {
                     <span style={{ color: 'var(--ink-muted)', fontWeight: 700 }}>Ticket Ref</span>
                     <div style={{ fontWeight: 900, fontFamily: 'monospace' }}>{checkInResult.ticket.id}</div>
                   </div>
+                </div>
+              )}
+
+              {/* Wrong Event Switch Filter Button */}
+              {checkInResult.status === 'WRONG_EVENT' && checkInResult.ticket && (
+                <div style={{ marginTop: '12px' }}>
+                  <Button
+                    variant="yellow"
+                    style={{ width: '100%' }}
+                    onClick={() => {
+                      setSelectedEventId('ALL');
+                      handleProcessScan(checkInResult.ticket.id);
+                    }}
+                  >
+                    🔄 Switch Filter to "All Events" & Check In Now
+                  </Button>
                 </div>
               )}
 

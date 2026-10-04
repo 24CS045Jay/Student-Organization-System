@@ -76,15 +76,22 @@ export const BrowseEventsView = ({ session, activeClub, onToast, onNavigate }) =
         prefillEmail: session.email || 'student@campus.edu',
         onSuccess: (paymentResult) => {
           const membersList = clubService.getMembers(targetClubId) || [];
-          const currentMember = membersList.find(m => m.email?.toLowerCase() === session?.email?.toLowerCase());
-          const resolvedMemberId = currentMember?.id || session?.memberId || session?.studentId || (isMemberDiscount ? `${targetPrefix}-001` : null);
+          const currentMember = membersList.find(m => 
+            m.email?.toLowerCase() === session?.email?.toLowerCase() ||
+            (m.personalEmail && m.personalEmail.toLowerCase() === session?.email?.toLowerCase()) ||
+            (m.personalEmail && session?.personalEmail && m.personalEmail.toLowerCase() === session?.personalEmail?.toLowerCase())
+          );
+          const resolvedMemberId = currentMember?.id || session?.memberId || (isMemberDiscount ? `${targetPrefix}-001` : null);
+          const resolvedStudentId = currentMember?.studentId || session?.studentRollNo || session?.studentId || null;
 
           const ticket = clubService.buyTicket(
             targetClubId,
             selectedEvent.id,
             {
-              name: session.name || 'Student Member',
-              email: session.email || 'student@campus.edu',
+              name: session.name || currentMember?.name || 'Student Member',
+              email: session.email || currentMember?.email || 'student@campus.edu',
+              personalEmail: currentMember?.personalEmail || session?.personalEmail || null,
+              studentId: resolvedStudentId,
               isMember: isMemberDiscount,
               memberId: resolvedMemberId
             },

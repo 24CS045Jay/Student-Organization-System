@@ -308,8 +308,10 @@ export const clubService = {
       eventId: event.id,
       eventTitle: event.title,
       memberId: attendeeInfo.memberId || null,
+      studentId: attendeeInfo.studentId || session?.studentRollNo || session?.studentId || null,
       attendeeName: attendeeInfo.name || session?.name || 'Guest Student',
       email: attendeeInfo.email || session?.email || 'student@campus.edu',
+      personalEmail: attendeeInfo.personalEmail || session?.personalEmail || null,
       isMember,
       pricePaid: price,
       status: 'Valid',
@@ -388,10 +390,11 @@ export const clubService = {
     // Strip leading / trailing quotes or whitespace
     cleanId = cleanId.replace(/["']/g, '').trim();
 
-    // If payload is a URL (e.g. https://clubsphere-campus-os.vercel.app/?verify=TKT-TC-9801)
-    if (cleanId.includes('?') && (cleanId.startsWith('http://') || cleanId.startsWith('https://'))) {
+    // Universal URL query parameter extractor (works with http, https, or relative URL)
+    if (cleanId.includes('?') || cleanId.includes('verify=') || cleanId.includes('ticket=') || cleanId.includes('code=')) {
       try {
-        const u = new URL(cleanId);
+        const urlStr = (cleanId.startsWith('http://') || cleanId.startsWith('https://')) ? cleanId : `http://localhost/${cleanId.replace(/^\//, '')}`;
+        const u = new URL(urlStr);
         const p = u.searchParams.get('verify') || u.searchParams.get('ticket') || u.searchParams.get('code') || u.searchParams.get('id');
         if (p) cleanId = p.trim();
       } catch (e) {
@@ -409,35 +412,50 @@ export const clubService = {
     if (cleanId.startsWith('CSQ1.') || cleanId.startsWith('CSM1.')) {
       const parts = cleanId.split('.');
       if (parts.length >= 2 && parts[1]) {
-        cleanId = parts[1]; // Extract core ticket ID or member ID
+        cleanId = parts[1].trim(); // Extract core ticket ID or member ID
       }
     }
 
     const upperId = cleanId.toUpperCase();
-    const club = dbInstance.getClub(orgId);
+    let club = dbInstance.getClub(orgId);
+
+    // If platform super admin, automatically resolve to the club that owns this ticket
+    if (orgId === 'platform') {
+      for (const [cId, cData] of Object.entries(dbInstance.data.clubs || {})) {
+        if ((cData.tickets || []).some(t => t.id.toUpperCase() === upperId || (t.qrToken && t.qrToken.toUpperCase().includes(upperId)))) {
+          club = cData;
+          break;
+        }
+      }
+    }
+
     if (!club.tickets) club.tickets = [];
     if (!club.members) club.members = [];
 
     // 1. Cross-Tenant Isolation Check: Does this ticket belong to another club?
-    for (const [otherOrgId, otherClub] of Object.entries(dbInstance.data.clubs)) {
-      if (otherOrgId !== orgId) {
-        const otherTicket = (otherClub.tickets || []).find(
-          t => t.id.toUpperCase() === upperId || (t.qrToken && t.qrToken.toUpperCase() === upperId)
-        );
-        if (otherTicket) {
-          return {
-            status: 'WRONG_CLUB',
-            message: `Cross-tenant Rejection: Ticket belongs to ${otherClub.name}, NOT ${club.name}!`,
-            ticket: otherTicket,
-            clubName: otherClub.name
-          };
+    if (orgId !== 'platform') {
+      for (const [otherOrgId, otherClub] of Object.entries(dbInstance.data.clubs || {})) {
+        if (otherOrgId !== orgId && otherOrgId !== 'platform') {
+          const otherTicket = (otherClub.tickets || []).find(
+            t => t.id.toUpperCase() === upperId || (t.qrToken && t.qrToken.toUpperCase().includes(upperId))
+          );
+          if (otherTicket) {
+            return {
+              status: 'WRONG_CLUB',
+              message: `Cross-tenant Rejection: Ticket belongs to ${otherClub.name}, NOT ${club.name}!`,
+              ticket: otherTicket,
+              clubName: otherClub.name
+            };
+          }
         }
       }
     }
 
     // 2. Direct Ticket Search in Current Club (By Ticket ID or Signed Token)
     let ticket = club.tickets.find(
-      t => t.id.toUpperCase() === upperId || (t.qrToken && t.qrToken.toUpperCase() === upperId)
+      t => t.id.toUpperCase() === upperId || 
+           (t.qrToken && t.qrToken.toUpperCase() === upperId) ||
+           (t.qrToken && t.qrToken.toUpperCase().includes(upperId))
     );
 
     // 3. Member ID / Student ID / Email Lookup:
@@ -445,21 +463,40 @@ export const clubService = {
     if (!ticket) {
       const member = club.members.find(
         m => m.id.toUpperCase() === upperId ||
-             m.studentId?.toUpperCase() === upperId ||
-             m.email.toLowerCase() === cleanId.toLowerCase()
+             (m.studentId && m.studentId.toUpperCase() === upperId) ||
+             (m.email && m.email.toLowerCase() === cleanId.toLowerCase()) ||
+             (m.personalEmail && m.personalEmail.toLowerCase() === cleanId.toLowerCase())
       );
 
       if (member) {
-        // Look for tickets booked by this member (prefer targetEventId if provided)
+        const memberEmails = [
+          member.email?.toLowerCase(),
+          member.personalEmail?.toLowerCase()
+        ].filter(Boolean);
+
+        // Look for tickets booked by this member across all identifiers
         const memberTickets = club.tickets.filter(
           t => (t.memberId && t.memberId.toUpperCase() === member.id.toUpperCase()) ||
-               (t.email && t.email.toLowerCase() === member.email.toLowerCase()) ||
-               (t.studentId && t.studentId.toUpperCase() === (member.studentId || '').toUpperCase())
+               (t.email && memberEmails.includes(t.email.toLowerCase())) ||
+               (t.personalEmail && memberEmails.includes(t.personalEmail.toLowerCase())) ||
+               (t.studentId && member.studentId && t.studentId.toUpperCase() === member.studentId.toUpperCase()) ||
+               (t.attendeeName && member.name && t.attendeeName.toLowerCase().trim() === member.name.toLowerCase().trim())
         );
 
         if (memberTickets.length > 0) {
-          if (targetEventId) {
-            ticket = memberTickets.find(t => t.eventId === targetEventId) || memberTickets[0];
+          if (targetEventId && targetEventId !== 'ALL') {
+            ticket = memberTickets.find(t => t.eventId === targetEventId);
+            if (!ticket) {
+              const bookedEv = (club.events || []).find(e => e.id === memberTickets[0].eventId);
+              const targetEv = (club.events || []).find(e => e.id === targetEventId);
+              return {
+                status: 'NOT_REGISTERED',
+                member,
+                message: `Active Member ${member.name} (${member.id}) holds a pass for "${bookedEv?.title || memberTickets[0].eventTitle}", but not for "${targetEv?.title || 'the selected event'}".`,
+                canQuickAdmit: true,
+                existingTicket: memberTickets[0]
+              };
+            }
           } else {
             // Pick valid ticket or most recent
             ticket = memberTickets.find(t => t.status === 'Valid') || memberTickets[0];
@@ -468,7 +505,7 @@ export const clubService = {
           return {
             status: 'NOT_REGISTERED',
             member,
-            message: `Active Member ${member.name} (${member.id}) found, but has not booked a ticket for this event.`,
+            message: `Active Member ${member.name} (${member.id}) found in roster, but has not booked a ticket for this event.`,
             canQuickAdmit: true
           };
         }
@@ -477,6 +514,17 @@ export const clubService = {
 
     if (!ticket) {
       return { status: 'INVALID', message: `No ticket or registered attendee found for "${cleanId}".` };
+    }
+
+    // Check if scanner was locked to a specific event that differs from ticket
+    if (targetEventId && targetEventId !== 'ALL' && ticket.eventId !== targetEventId) {
+      const targetEv = (club.events || []).find(e => e.id === targetEventId);
+      return {
+        status: 'WRONG_EVENT',
+        ticket,
+        message: `⚠️ Event Mismatch: Ticket is for "${ticket.eventTitle}", but scanner filter is set to "${targetEv?.title || 'Selected Event'}". Set dropdown to "All Club Events" to admit.`,
+        canQuickAdmit: false
+      };
     }
 
     // 4. Duplicate Check-in Prevention (Anti-Passback)
@@ -544,10 +592,12 @@ export const clubService = {
     if (!event) throw new Error('No event selected for admission');
 
     const cleanId = (memberIdOrQuery || '').trim().toUpperCase();
+    const cleanLower = (memberIdOrQuery || '').trim().toLowerCase();
     const member = club.members.find(
       m => m.id.toUpperCase() === cleanId ||
-           m.studentId?.toUpperCase() === cleanId ||
-           m.email.toLowerCase() === memberIdOrQuery.toLowerCase()
+           (m.studentId && m.studentId.toUpperCase() === cleanId) ||
+           (m.email && m.email.toLowerCase() === cleanLower) ||
+           (m.personalEmail && m.personalEmail.toLowerCase() === cleanLower)
     );
 
     if (!member) throw new Error('Member record not found');
